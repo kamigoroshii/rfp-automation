@@ -1,0 +1,454 @@
+# Implementation Plan
+
+## Overview
+This implementation plan breaks down the RFP Automation System into incremental, actionable coding tasks. Each task builds on previous work, ensuring continuous integration and no orphaned code. The plan follows a bottom-up approach: data layer → agents → orchestration → frontend → deployment.
+
+---
+
+- [ ] 1. Setup project structure and development environment
+  - Create root directory structure: `/agents`, `/orchestrator`, `/frontend`, `/shared`, `/data`, `/tests`, `/docker`
+  - Initialize Python virtual environment and install core dependencies (Python 3.10+, pip, requirements.txt)
+  - Setup `.env` file template for configuration (database URLs, API keys, Redis connection)
+  - Create `requirements.txt` with initial dependencies: fastapi, crewai, psycopg2, redis, qdrant-client, sentence-transformers, pdfplumber, beautifulsoup4, requests, celery
+  - Initialize Git repository with `.gitignore` for Python projects
+  - _Requirements: 8.5, 11.1_
+
+- [ ] 2. Implement shared data models and database schemas
+  - [ ] 2.1 Create data models module with Python dataclasses
+    - Write `shared/models.py` with dataclasses: `RFPSummary`, `Specification`, `ProductMatch`, `PricingBreakdown`, `RFPResponse`
+    - Add JSON serialization methods to each dataclass
+    - Include field validation logic (e.g., deadline must be future date, match_score between 0-1)
+    - _Requirements: 8.1, 8.4_
+  - [ ] 2.2 Create PostgreSQL database schema and migration scripts
+    - Write SQL schema file `shared/database/schema.sql` with tables: rfps, specifications, products, matches, pricing, feedback
+    - Create database initialization script `shared/database/init_db.py` to execute schema
+    - Add indexes on rfp_id, sku, deadline columns for query optimization
+    - _Requirements: 8.1, 8.4_
+  - [ ] 2.3 Implement database connection manager
+    - Write `shared/database/connection.py` with PostgreSQL connection pooling using psycopg2
+    - Add methods: `get_connection()`, `execute_query()`, `execute_transaction()`
+    - Implement connection retry logic with exponential backoff
+    - _Requirements: 8.1, 8.4_
+  - [ ] 2.4 Create Redis cache manager
+    - Write `shared/cache/redis_manager.py` with Redis client wrapper
+    - Implement methods: `set_cache()`, `get_cache()`, `delete_cache()`, `set_with_ttl()`
+    - Add connection health check and auto-reconnect logic
+    - _Requirements: 8.3_
+
+- [ ] 3. Implement Qdrant vector database setup
+  - [ ] 3.1 Create Qdrant collection initialization script
+    - Write `shared/vector_db/qdrant_setup.py` to create "product_catalog" collection
+    - Configure collection with vector size 384 (all-MiniLM-L6-v2 dimension)
+    - Define payload schema: sku, product_name, specifications, datasheet_url, category
+    - _Requirements: 8.2_
+  - [ ] 3.2 Implement vector database client wrapper
+    - Write `shared/vector_db/qdrant_client.py` with methods: `insert_vectors()`, `search_similar()`, `delete_vectors()`
+    - Add batch insertion support for bulk product catalog loading
+    - Implement error handling for connection failures
+    - _Requirements: 8.2_
+
+- [ ] 4. Create sample data generators for testing
+  - [ ] 4.1 Generate sample RFP documents
+    - Write `data/generators/rfp_generator.py` to create 10 sample RFP PDFs with realistic cable specifications
+    - Include varied specifications: voltage ratings (11kV, 33kV), conductor materials (Aluminum, Copper), cable types (XLPE, PVC)
+    - Add testing requirements and deadlines to each sample RFP
+    - _Requirements: 10.3_
+  - [ ] 4.2 Generate sample product catalog
+    - Write `data/generators/product_generator.py` to create 50 sample product entries in JSON format
+    - Include SKUs, product names, specifications, unit prices, datasheet URLs
+    - Cover diverse product categories matching sample RFP requirements
+    - _Requirements: 10.3_
+  - [ ] 4.3 Create sample website for RFP scraping
+    - Write static HTML pages in `data/sample_website/` with RFP listings
+    - Include RFP title, deadline, scope, download links in structured HTML
+    - Add both table-based and list-based layouts for scraper testing
+    - _Requirements: 1.5, 10.3_
+
+- [ ] 5. Implement Sales Agent for RFP discovery
+  - [ ] 5.1 Create web scraper module
+    - Write `agents/sales/web_scraper.py` with BeautifulSoup-based scraping logic
+    - Implement `scrape_static_site()` method to extract RFP listings from HTML
+    - Add support for parsing RFP title, deadline, scope from common HTML patterns
+    - Include error handling for network failures and malformed HTML
+    - _Requirements: 1.1, 1.5_
+  - [ ] 5.2 Implement RFP parser and summarizer
+    - Write `agents/sales/rfp_parser.py` to extract structured data from scraped content
+    - Create `parse_rfp()` method to identify title, deadline, scope, testing requirements using regex patterns
+    - Generate unique rfp_id using timestamp and hash
+    - Output RFPSummary dataclass instance
+    - _Requirements: 1.3, 1.4_
+  - [ ] 5.3 Create Sales Agent main class
+    - Write `agents/sales/sales_agent.py` with `SalesAgent` class
+    - Implement `discover_rfps()` method to orchestrate scraping and parsing
+    - Add `save_to_memory()` method to store RFPSummary in PostgreSQL and Redis cache
+    - Include logging for all discovery operations
+    - _Requirements: 1.1, 1.3, 1.4_
+  - [ ]* 5.4 Write unit tests for Sales Agent
+    - Create `tests/unit/test_sales_agent.py` with pytest test cases
+    - Test web scraping with mock HTML responses
+    - Test RFP parsing with sample data
+    - Validate JSON output format and field accuracy
+    - _Requirements: 10.1_
+
+- [ ] 6. Implement Document Agent for PDF parsing
+  - [ ] 6.1 Create PDF extraction module
+    - Write `agents/document/pdf_extractor.py` using pdfplumber library
+    - Implement `extract_text()` method to extract text from PDF pages
+    - Add `extract_tables()` method to parse tabular data from PDFs
+    - Handle corrupted PDFs with try-catch and flag for manual review
+    - _Requirements: 2.1, 2.5_
+  - [ ] 6.2 Implement specification parser with NLP
+    - Write `agents/document/spec_parser.py` using spaCy for NER
+    - Create regex patterns to identify cable specifications: voltage_rating, conductor_material, conductor_size, insulation_type, quantity
+    - Implement `parse_specifications()` method to extract specs from text
+    - Add `parse_testing_requirements()` to identify test standards and certifications
+    - _Requirements: 2.2, 2.3_
+  - [ ] 6.3 Create Document Agent main class
+    - Write `agents/document/document_agent.py` with `DocumentAgent` class
+    - Implement `process_document()` method to orchestrate extraction and parsing
+    - Calculate confidence_score based on number of successfully extracted fields
+    - Save Specification dataclass to PostgreSQL
+    - _Requirements: 2.1, 2.2, 2.3, 2.4_
+  - [ ]* 6.4 Write unit tests for Document Agent
+    - Create `tests/unit/test_document_agent.py` with test cases for PDF extraction
+    - Test specification parsing with sample text inputs
+    - Validate confidence score calculation
+    - Test error handling for corrupted PDFs
+    - _Requirements: 10.1_
+
+- [ ] 7. Implement Technical Agent for product matching
+  - [ ] 7.1 Create embedding generator module
+    - Write `agents/technical/embedding_generator.py` using sentence-transformers
+    - Load "sentence-transformers/all-MiniLM-L6-v2" model
+    - Implement `generate_embedding()` method to convert specification dict to 384-dim vector
+    - Add batch embedding generation for product catalog
+    - _Requirements: 3.2_
+  - [ ] 7.2 Implement product catalog loader
+    - Write `agents/technical/product_loader.py` to load products from JSON file
+    - Generate embeddings for all products in catalog
+    - Insert product vectors into Qdrant collection with metadata
+    - _Requirements: 3.2_
+  - [ ] 7.3 Create vector search engine
+    - Write `agents/technical/vector_search.py` with Qdrant query logic
+    - Implement `search_similar_products()` to find top-K matches using cosine similarity
+    - Return list of ProductMatch dataclasses with SKU, match_score, specification_alignment
+    - _Requirements: 3.1, 3.2, 3.3_
+  - [ ] 7.4 Implement match scorer and comparison table generator
+    - Write `agents/technical/match_scorer.py` to calculate detailed match scores
+    - Create `calculate_match_score()` comparing RFP specs vs product specs field-by-field
+    - Generate specification_alignment dict (exact_match, close_match, no_match)
+    - Build comparison table in HTML/JSON format
+    - _Requirements: 3.3, 3.4, 3.5_
+  - [ ] 7.5 Create Technical Agent main class
+    - Write `agents/technical/technical_agent.py` with `TechnicalAgent` class
+    - Implement `match_products()` method orchestrating embedding, search, scoring
+    - Save matches to PostgreSQL matches table
+    - Return top 3 matches sorted by match_score
+    - _Requirements: 3.1, 3.3, 3.4_
+  - [ ]* 7.6 Write unit tests for Technical Agent
+    - Create `tests/unit/test_technical_agent.py` with embedding generation tests
+    - Test vector search with mock Qdrant responses
+    - Validate match score calculation logic
+    - Test comparison table generation
+    - _Requirements: 10.1_
+
+- [ ] 8. Implement Pricing Agent for cost calculation
+  - [ ] 8.1 Create pricing database and rule engine
+    - Write `agents/pricing/pricing_db.py` to load pricing tables from JSON
+    - Define pricing rules: base_price, testing_cost_multiplier, delivery_rate_per_km, urgency_multiplier
+    - Implement `get_product_price()` and `get_testing_cost()` methods
+    - _Requirements: 4.2, 4.3_
+  - [ ] 8.2 Implement ML pricing model (XGBoost)
+    - Write `agents/pricing/ml_model.py` with XGBoost regressor
+    - Define feature extraction: product_category, quantity, urgency_level, delivery_distance, testing_complexity
+    - Create `train_model()` method (initially with dummy data, will be replaced by Learning Agent)
+    - Implement `predict_price()` method for inference
+    - _Requirements: 4.4_
+  - [ ] 8.3 Create pricing calculator
+    - Write `agents/pricing/pricing_calculator.py` to consolidate all cost components
+    - Implement `calculate_total_cost()` combining unit_price, testing_cost, delivery_cost, urgency_adjustment
+    - Generate PricingBreakdown dataclass for each matched product
+    - Select recommended_sku based on best match_score and competitive pricing
+    - _Requirements: 4.1, 4.2, 4.5_
+  - [ ] 8.4 Create Pricing Agent main class
+    - Write `agents/pricing/pricing_agent.py` with `PricingAgent` class
+    - Implement `calculate_pricing()` method orchestrating rules, ML model, calculator
+    - Save pricing to PostgreSQL pricing table
+    - Return list of PricingBreakdown dataclasses
+    - _Requirements: 4.1, 4.5_
+  - [ ]* 8.5 Write unit tests for Pricing Agent
+    - Create `tests/unit/test_pricing_agent.py` with rule engine tests
+    - Test ML model prediction with sample features
+    - Validate pricing calculation logic
+    - Test recommended SKU selection
+    - _Requirements: 10.1_
+
+- [ ] 9. Implement Orchestrator Agent with CrewAI
+  - [ ] 9.1 Create CrewAI agent definitions
+    - Write `orchestrator/crew_config.py` defining CrewAI Agent instances
+    - Define sales_agent with role "RFP Discovery Specialist", tools, memory=True
+    - Define technical_agent with role "Product Matching Expert"
+    - Define pricing_agent with role "Pricing Analyst"
+    - _Requirements: 5.1_
+  - [ ] 9.2 Implement CrewAI tools for each agent
+    - Write `orchestrator/tools/sales_tools.py` with web_scraper_tool, rfp_parser_tool
+    - Write `orchestrator/tools/technical_tools.py` with vector_search_tool, match_scorer_tool
+    - Write `orchestrator/tools/pricing_tools.py` with pricing_calculator_tool, ml_model_tool
+    - Wrap agent methods as CrewAI Tool objects
+    - _Requirements: 5.1_
+  - [ ] 9.3 Create workflow engine with task definitions
+    - Write `orchestrator/workflow_engine.py` defining CrewAI Task objects
+    - Create discover_task: "Discover and summarize RFP from source"
+    - Create parse_task: "Extract specifications from RFP document"
+    - Create match_task: "Match RFP specifications with product catalog"
+    - Create price_task: "Calculate pricing for matched products"
+    - Define task dependencies and execution order
+    - _Requirements: 5.2_
+  - [ ] 9.4 Implement Crew orchestration logic
+    - Write `orchestrator/orchestrator_agent.py` with `OrchestratorAgent` class
+    - Implement `initialize_crew()` creating Crew with agents and tasks
+    - Add `process_rfp()` method to execute crew workflow for given rfp_id
+    - Implement parallel execution for independent tasks using process='parallel'
+    - Add retry logic for failed agent executions (up to 3 retries)
+    - _Requirements: 5.1, 5.2, 5.3, 5.5_
+  - [ ] 9.5 Create response consolidation module
+    - Write `orchestrator/response_consolidator.py` to aggregate agent outputs
+    - Implement `consolidate_results()` combining RFPSummary, Specification, matches, pricing
+    - Generate RFPResponse dataclass with all consolidated data
+    - Save final response to PostgreSQL with unique identifier
+    - _Requirements: 6.1, 6.2, 6.4_
+  - [ ]* 9.6 Write integration tests for Orchestrator
+    - Create `tests/integration/test_orchestrator.py` with end-to-end workflow tests
+    - Test sequential task execution with sample RFP
+    - Test parallel task execution
+    - Validate retry logic on agent failures
+    - Verify response consolidation
+    - _Requirements: 10.2_
+
+- [ ] 10. Implement FastAPI REST API server
+  - [ ] 10.1 Create FastAPI application structure
+    - Write `orchestrator/api/main.py` with FastAPI app initialization
+    - Setup CORS middleware for frontend integration
+    - Add request logging middleware
+    - Configure Uvicorn server settings
+    - _Requirements: 5.4_
+  - [ ] 10.2 Implement RFP management endpoints
+    - Write `orchestrator/api/routes/rfp_routes.py` with route handlers
+    - Create POST `/api/rfp/submit` endpoint to submit new RFP for processing
+    - Create GET `/api/rfp/{rfp_id}` endpoint to retrieve RFP status and results
+    - Create GET `/api/rfp/list` endpoint to list all RFPs with pagination
+    - Add request validation using Pydantic models
+    - _Requirements: 5.4, 6.1_
+  - [ ] 10.3 Implement feedback and analytics endpoints
+    - Write POST `/api/rfp/{rfp_id}/feedback` endpoint to submit outcome feedback
+    - Create GET `/api/analytics/dashboard` endpoint returning performance metrics
+    - Create GET `/api/products/search` endpoint for product catalog search
+    - _Requirements: 5.4, 7.1_
+  - [ ] 10.4 Add Celery task queue for async processing
+    - Write `orchestrator/tasks/celery_app.py` with Celery configuration
+    - Create async task `process_rfp_async()` wrapping orchestrator.process_rfp()
+    - Configure Redis as Celery broker and result backend
+    - Add task status tracking and result retrieval
+    - _Requirements: 5.3_
+  - [ ]* 10.5 Write API endpoint tests
+    - Create `tests/integration/test_api.py` with FastAPI TestClient
+    - Test all endpoints with valid and invalid inputs
+    - Test async task submission and status retrieval
+    - Validate response schemas
+    - _Requirements: 10.2_
+
+- [ ] 11. Implement Learning Agent for continuous improvement
+  - [ ] 11.1 Create feedback collector module
+    - Write `agents/learning/feedback_collector.py` to record RFP outcomes
+    - Implement `record_outcome()` method saving feedback to PostgreSQL feedback table
+    - Store submitted_at, outcome (won/lost), actual_price, predicted_price, match_accuracy
+    - _Requirements: 7.1, 7.2_
+  - [ ] 11.2 Implement performance tracker
+    - Write `agents/learning/performance_tracker.py` to calculate metrics
+    - Create `calculate_win_rate()` method: wins / total_submissions
+    - Create `calculate_match_accuracy()`: average of match_accuracy from feedback
+    - Create `calculate_pricing_accuracy()`: 1 - abs(actual_price - predicted_price) / actual_price
+    - _Requirements: 7.2, 7.4_
+  - [ ] 11.3 Create model retrainer module
+    - Write `agents/learning/model_retrainer.py` for retraining ML models
+    - Implement `retrain_pricing_model()` using feedback data when count >= 50
+    - Extract features from historical data and retrain XGBoost model
+    - Save new model version with timestamp
+    - _Requirements: 7.3_
+  - [ ] 11.4 Create Learning Agent main class
+    - Write `agents/learning/learning_agent.py` with `LearningAgent` class
+    - Implement `process_feedback()` orchestrating collection, metrics, retraining
+    - Add `update_agent_models()` to deploy new model versions to Pricing Agent
+    - Schedule periodic retraining checks (e.g., daily cron job)
+    - _Requirements: 7.1, 7.3, 7.5_
+  - [ ]* 11.5 Write unit tests for Learning Agent
+    - Create `tests/unit/test_learning_agent.py` with metric calculation tests
+    - Test model retraining with sample feedback data
+    - Validate model version management
+    - _Requirements: 10.1_
+
+- [ ] 12. Implement Frontend Dashboard with React
+  - [ ] 12.1 Setup React project with Tailwind CSS
+    - Initialize React app in `frontend/` using create-react-app or Vite
+    - Install dependencies: axios, chart.js, react-chartjs-2, tailwindcss
+    - Configure Tailwind with olive green color palette in `tailwind.config.js`
+    - Create base layout components: Header, Sidebar, Footer
+    - _Requirements: 9.1, 9.4_
+  - [ ] 12.2 Create RFP list view component
+    - Write `frontend/src/components/RFPListView.jsx` displaying RFP cards
+    - Fetch RFP list from GET `/api/rfp/list` endpoint using axios
+    - Display rfp_id, title, deadline, status, match_score for each RFP
+    - Add status badges (new, processing, completed) with color coding
+    - Implement deadline alert badges for RFPs due within 48 hours
+    - _Requirements: 9.2, 9.5_
+  - [ ] 12.3 Create RFP detail view component
+    - Write `frontend/src/components/RFPDetailView.jsx` for detailed RFP display
+    - Fetch RFP details from GET `/api/rfp/{rfp_id}` endpoint
+    - Display RFP summary, specifications, matched products with comparison table
+    - Show pricing breakdown with line items (unit_price, testing_cost, delivery_cost, total)
+    - Add "Submit Feedback" button to record outcome
+    - _Requirements: 9.2_
+  - [ ] 12.4 Create analytics dashboard component
+    - Write `frontend/src/components/AnalyticsView.jsx` with performance charts
+    - Fetch metrics from GET `/api/analytics/dashboard` endpoint
+    - Display win rate trend chart using Chart.js
+    - Show average processing time and match accuracy metrics
+    - Add filters for date range selection
+    - _Requirements: 9.2_
+  - [ ] 12.5 Implement real-time updates with polling
+    - Add polling mechanism in RFPListView to refresh data every 30 seconds
+    - Update RFP status indicators in real-time
+    - Show toast notifications for status changes
+    - _Requirements: 9.3_
+  - [ ]* 12.6 Write frontend component tests
+    - Create tests for RFPListView, RFPDetailView, AnalyticsView using React Testing Library
+    - Test API integration with mock responses
+    - Validate UI rendering and user interactions
+    - _Requirements: 10.2_
+
+- [ ] 13. Create Docker containerization
+  - [ ] 13.1 Write Dockerfiles for each service
+    - Create `docker/orchestrator/Dockerfile` for FastAPI server
+    - Create `docker/agents/Dockerfile` for agent services
+    - Create `docker/frontend/Dockerfile` for React app with nginx
+    - Use multi-stage builds to minimize image sizes
+    - _Requirements: 11.1_
+  - [ ] 13.2 Create Docker Compose configuration
+    - Write `docker-compose.yml` defining all services: orchestrator, sales-agent, technical-agent, pricing-agent, learning-agent, postgres, redis, qdrant, frontend
+    - Configure service dependencies and network connections
+    - Add volume mounts for persistent data (postgres_data, qdrant_data)
+    - Set environment variables for database URLs and API keys
+    - _Requirements: 11.1_
+  - [ ] 13.3 Create database initialization scripts
+    - Write `docker/init-scripts/init-db.sh` to run schema.sql on container startup
+    - Add sample data loading script for products and pricing tables
+    - _Requirements: 11.1_
+  - [ ]* 13.4 Test Docker deployment locally
+    - Run `docker-compose up` and verify all services start successfully
+    - Test end-to-end workflow through Docker containers
+    - Validate inter-service communication
+    - _Requirements: 11.1_
+
+- [ ] 14. Implement error handling and logging
+  - [ ] 14.1 Create centralized error handler
+    - Write `shared/error_handler.py` with ErrorHandler class
+    - Implement `handle_agent_error()`, `handle_data_error()`, `handle_system_error()` methods
+    - Add retry logic with exponential backoff for transient errors
+    - Log all errors with context (rfp_id, agent, timestamp, stack_trace)
+    - _Requirements: 5.5_
+  - [ ] 14.2 Setup structured logging
+    - Write `shared/logger.py` with Python logging configuration
+    - Use JSON formatter for structured logs
+    - Configure log levels: DEBUG for development, INFO for production
+    - Add log rotation and retention policies
+    - _Requirements: 10.4_
+  - [ ] 14.3 Integrate error handling across all agents
+    - Add try-catch blocks in all agent methods
+    - Call ErrorHandler methods on exceptions
+    - Update RFP status to "failed" on unrecoverable errors
+    - Send error notifications via logging
+    - _Requirements: 5.5_
+
+- [ ] 15. Implement CI/CD pipeline with GitHub Actions
+  - [ ] 15.1 Create GitHub Actions workflow for testing
+    - Write `.github/workflows/ci.yml` with test job
+    - Setup Python environment and install dependencies
+    - Run pytest for unit and integration tests
+    - Generate code coverage report
+    - _Requirements: 11.3_
+  - [ ] 15.2 Create GitHub Actions workflow for Docker build
+    - Add build job to `.github/workflows/ci.yml`
+    - Build Docker images for all services
+    - Push images to Docker Hub or GitHub Container Registry
+    - Tag images with commit SHA and branch name
+    - _Requirements: 11.3_
+  - [ ] 15.3 Create deployment workflow
+    - Write `.github/workflows/deploy.yml` for production deployment
+    - Add deployment steps for AWS ECS or Kubernetes
+    - Configure deployment triggers (e.g., on push to main branch)
+    - Add deployment approval gates for production
+    - _Requirements: 11.3_
+
+- [ ] 16. Create comprehensive documentation
+  - [ ] 16.1 Write README with setup instructions
+    - Create `README.md` with project overview, architecture diagram, setup steps
+    - Document environment variables and configuration options
+    - Add quick start guide for local development
+    - Include Docker deployment instructions
+    - _Requirements: 11.2_
+  - [ ] 16.2 Create API documentation
+    - Generate OpenAPI/Swagger documentation from FastAPI
+    - Document all endpoints with request/response examples
+    - Add authentication and error response documentation
+    - _Requirements: 5.4_
+  - [ ] 16.3 Write agent development guide
+    - Create `docs/AGENT_DEVELOPMENT.md` explaining how to add new agents
+    - Document CrewAI integration patterns
+    - Provide code examples for custom tools
+    - _Requirements: 5.1_
+
+- [ ] 17. Perform end-to-end validation testing
+  - [ ] 17.1 Create validation test suite
+    - Write `tests/validation/test_e2e.py` with 10 sample RFPs
+    - Run complete workflow for each sample RFP
+    - Compare system outputs with expected results
+    - Calculate accuracy metrics: match_accuracy, pricing_accuracy
+    - _Requirements: 10.3_
+  - [ ] 17.2 Validate performance requirements
+    - Test RFP processing time meets < 30 minutes requirement
+    - Test API response times meet < 2 seconds requirement
+    - Test concurrent RFP handling with 100 simultaneous requests
+    - _Requirements: 6.5, 11.4_
+  - [ ] 17.3 Generate validation report
+    - Create validation report documenting test results
+    - Include accuracy metrics, performance benchmarks, error rates
+    - Identify areas for improvement
+    - _Requirements: 10.3, 10.4_
+
+- [ ] 18. Deploy to cloud infrastructure
+  - [ ] 18.1 Setup AWS infrastructure
+    - Create AWS ECS cluster for container orchestration
+    - Setup RDS PostgreSQL instance with Multi-AZ deployment
+    - Configure ElastiCache Redis cluster
+    - Launch EC2 instance for Qdrant vector database
+    - Setup S3 bucket for document storage
+    - _Requirements: 11.2, 11.5_
+  - [ ] 18.2 Configure networking and security
+    - Create VPC with public and private subnets
+    - Setup security groups for service-to-service communication
+    - Configure IAM roles and policies for service access
+    - Enable encryption at rest and in transit
+    - _Requirements: 11.2_
+  - [ ] 18.3 Deploy services to AWS
+    - Push Docker images to Amazon ECR
+    - Create ECS task definitions for each service
+    - Deploy services to ECS cluster
+    - Configure Application Load Balancer for API and frontend
+    - Setup CloudFront CDN for frontend
+    - _Requirements: 11.2_
+  - [ ] 18.4 Setup monitoring and alerting
+    - Configure CloudWatch for logs and metrics
+    - Create CloudWatch dashboards for system monitoring
+    - Setup alarms for: agent failure rate > 5%, API response time > 5s, database connection issues
+    - Configure SNS notifications for critical alerts
+    - _Requirements: 11.5_
