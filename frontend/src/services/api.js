@@ -63,15 +63,41 @@ export const rfpAPI = {
   async submitRFP(rfpData) {
     if (USE_MOCK_DATA) {
       await delay(500);
+      const newRFPId = `RFP-2025-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
       const newRFP = {
-        rfp_id: `RFP-2025-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
-        ...rfpData,
+        rfp_id: newRFPId,
+        title: rfpData.title,
+        source: rfpData.source,
+        deadline: rfpData.deadline,
+        scope: rfpData.scope,
+        testing_requirements: rfpData.testing_requirements || [],
         discovered_at: new Date().toISOString(),
-        status: 'processing',
-        match_score: 0,
-        total_estimate: 0
+        status: rfpData.status || 'processing',
+        match_score: rfpData.match_score || 0,
+        total_estimate: rfpData.total_estimate || 0
       };
+      
+      // Add to mock RFPs list
       mockRFPs.unshift(newRFP);
+      
+      // Create detailed entry if processing results are included
+      if (rfpData.specifications && rfpData.matched_products) {
+        mockRFPDetails[newRFPId] = {
+          rfp_summary: newRFP,
+          specifications: rfpData.specifications,
+          testing_requirements: {
+            routine_tests: rfpData.testing_requirements,
+            certifications: []
+          },
+          matches: [], // Will be populated by frontend
+          pricing: [], // Will be populated by frontend
+          recommended_sku: rfpData.recommended_sku || null,
+          total_estimate: rfpData.total_estimate || 0,
+          generated_at: new Date().toISOString(),
+          confidence: rfpData.match_score || 0
+        };
+      }
+      
       return { data: newRFP };
     }
     return api.post('/rfp/submit', rfpData);

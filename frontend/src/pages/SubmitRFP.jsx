@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { rfpAPI } from '../services/api';
 import { toast } from 'react-toastify';
-import { Upload, Link as LinkIcon, FileText } from 'lucide-react';
+import { Upload, Link as LinkIcon, FileText, CheckCircle, Loader } from 'lucide-react';
+import { extractSpecifications, getSpecificationSummary, validateSpecifications } from '../utils/specExtractor';
+import { matchProducts, getRecommendedProduct } from '../utils/productMatcher';
+import { calculatePricing, formatCurrency } from '../utils/pricingCalculator';
 
 const SubmitRFP = () => {
   const navigate = useNavigate();
@@ -16,6 +19,8 @@ const SubmitRFP = () => {
   });
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [processedData, setProcessedData] = useState(null);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -33,9 +38,22 @@ const SubmitRFP = () => {
     }
   };
 
+  // Auto-fill sample data for testing
+  const fillSampleData = () => {
+    setFormData({
+      title: 'Supply of 11kV XLPE Aluminum Cables',
+      source: 'https://example.com/tender-rfp-2025',
+      deadline: '2025-12-15T17:00',
+      scope: 'Supply of 5000 meters of 11kV XLPE cables with 3 core aluminum conductor, size 240 sq.mm. Cables should comply with IEC 60502-2 and IS 7098 standards. Armored with steel wire armor (SWA).',
+      testing_requirements: 'Type test, Routine test, Partial discharge test'
+    });
+    toast.info('Sample data filled. You can now submit!');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    setProcessing(true);
 
     try {
       const testingReqs = formData.testing_requirements
@@ -43,23 +61,99 @@ const SubmitRFP = () => {
         .map(r => r.trim())
         .filter(r => r);
 
+      // Step 1: Extract specifications from scope
+      toast.info('Extracting specifications...', { autoClose: 2000 });
+      const specifications = extractSpecifications(formData.scope + ' ' + formData.title);
+      
+      if (specifications.length === 0) {
+        toast.warning('No specifications detected. Please provide more details in the scope.');
+        setSubmitting(false);
+        setProcessing(false);
+        return;
+      }
+
+      // Validate specifications
+      const validation = validateSpecifications(specifications);
+      if (!validation.isValid) {
+        toast.warning(`Missing critical specifications: ${validation.missingFields.join(', ')}`);
+      }
+
+      // Get specification summary
+      const specSummary = getSpecificationSummary(specifications);
+      
+      // Step 2: Match products
+      toast.info('Matching products...', { autoClose: 2000 });
+      const matches = matchProducts(specifications);
+      
+      if (matches.length === 0) {
+        toast.warning('No matching products found. Try adjusting specifications.');
+        setSubmitting(false);
+        setProcessing(false);
+        return;
+      }
+
+      // Step 3: Calculate pricing
+      toast.info('Calculating pricing...', { autoClose: 2000 });
+      
+      // Extract quantity from specifications or use default
+      const quantitySpec = specifications.find(s => s.type === 'quantity');
+      const quantity = quantitySpec ? parseInt(quantitySpec.value) : 1000;
+      
+      const pricingList = calculatePricing(
+        matches,
+        quantity,
+        formData.deadline,
+        testingReqs
+      );
+
+      // Get recommended product
+      const recommendedSku = getRecommendedProduct(matches, pricingList);
+      const recommendedMatch = matches.find(m => m.sku === recommendedSku);
+      const recommendedPricing = pricingList.find(p => p.sku === recommendedSku);
+
+      // Store processed data
+      const processed = {
+        specifications,
+        specSummary,
+        matches,
+        pricingList,
+        recommendedSku,
+        recommendedMatch,
+        recommendedPricing,
+        quantity
+      };
+      
+      setProcessedData(processed);
+
+      // Prepare RFP data with processing results
       const rfpData = {
         title: formData.title,
         source: submissionType === 'url' ? formData.source : `File: ${file?.name || 'uploaded'}`,
         deadline: new Date(formData.deadline).toISOString(),
         scope: formData.scope,
-        testing_requirements: testingReqs
+        testing_requirements: testingReqs,
+        // Add processed results
+        match_score: recommendedMatch?.match_score || 0,
+        total_estimate: recommendedPricing?.total || 0,
+        status: 'completed',
+        specifications: specSummary,
+        matched_products: matches.length,
+        recommended_sku: recommendedSku
       };
 
       const response = await rfpAPI.submitRFP(rfpData);
-      toast.success('RFP submitted successfully! Processing will begin shortly.');
       
+      setProcessing(false);
+      toast.success('RFP processed successfully!', { autoClose: 3000 });
+      
+      // Show results for 3 seconds before redirecting
       setTimeout(() => {
         navigate(`/rfp/${response.data.rfp_id}`);
-      }, 1500);
+      }, 3000);
     } catch (error) {
       console.error('Error submitting RFP:', error);
-      toast.error('Failed to submit RFP. Please try again.');
+      toast.error('Failed to process RFP. Please try again.');
+      setProcessing(false);
     } finally {
       setSubmitting(false);
     }
@@ -67,9 +161,17 @@ const SubmitRFP = () => {
 
   return (
     <div className="w-full space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-text">Submit New RFP</h2>
-        <p className="text-text-light mt-1">Add a new RFP for automated processing</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-3xl font-bold text-text">Submit New RFP</h2>
+          <p className="text-text-light mt-1">Add a new RFP for automated processing</p>
+        </div>
+        <button
+          onClick={fillSampleData}
+          className="px-4 py-2 text-sm bg-gray-100 text-text rounded-lg hover:bg-gray-200 transition-colors"
+        >
+          Fill Sample Data
+        </button>
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6">
@@ -249,9 +351,174 @@ const SubmitRFP = () => {
           <li>• System will parse the RFP document and extract specifications</li>
           <li>• Product matching engine will find best-fit products from catalog</li>
           <li>• Pricing calculator will generate cost estimates</li>
-          <li>• Complete response will be available within 30 minutes</li>
+          <li>• Complete response will be available immediately</li>
         </ul>
       </div>
+
+      {/* Processing Results */}
+      {processing && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Loader className="animate-spin text-primary" size={24} />
+            <h3 className="text-xl font-bold text-text">Processing RFP...</h3>
+          </div>
+          <div className="space-y-2 text-text-light">
+            <p>✓ Extracting specifications from scope</p>
+            <p>✓ Matching products from catalog</p>
+            <p>✓ Calculating pricing estimates</p>
+          </div>
+        </div>
+      )}
+
+      {/* Processed Results Display */}
+      {processedData && !processing && (
+        <div className="space-y-6">
+          {/* Specifications Found */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle className="text-success" size={24} />
+              <h3 className="text-xl font-bold text-text">Specifications Extracted</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {processedData.specifications.map((spec, idx) => (
+                <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                  <span className="text-text-light capitalize">{spec.type.replace(/_/g, ' ')}</span>
+                  <span className="font-semibold text-text">
+                    {spec.value} {spec.unit}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Product Matches */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle className="text-success" size={24} />
+              <h3 className="text-xl font-bold text-text">
+                {processedData.matches.length} Products Matched
+              </h3>
+            </div>
+            <div className="space-y-3">
+              {processedData.matches.slice(0, 3).map((match) => (
+                <div key={match.sku} className="p-4 border border-gray-200 rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="font-semibold text-text">{match.name}</h4>
+                      <p className="text-sm text-text-light">{match.sku}</p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      match.match_score >= 0.9 ? 'bg-success/20 text-success' :
+                      match.match_score >= 0.7 ? 'bg-warning/20 text-warning' :
+                      'bg-gray-200 text-text'
+                    }`}>
+                      {(match.match_score * 100).toFixed(0)}% Match
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {match.matched_specs.map((spec, idx) => (
+                      <span key={idx} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded">
+                        {spec.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pricing Estimate */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle className="text-success" size={24} />
+              <h3 className="text-xl font-bold text-text">Pricing Calculated</h3>
+            </div>
+            
+            {/* Recommended Option */}
+            {processedData.recommendedPricing && (
+              <div className="p-4 bg-primary/10 border-2 border-primary rounded-lg mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-primary">RECOMMENDED</span>
+                  <span className="text-2xl font-bold text-primary">
+                    {formatCurrency(processedData.recommendedPricing.total)}
+                  </span>
+                </div>
+                <p className="text-text font-semibold mb-3">{processedData.recommendedMatch.name}</p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-text-light">Unit Price:</span>
+                    <span className="ml-2 text-text font-medium">
+                      ₹{processedData.recommendedPricing.unit_price}/m
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-light">Quantity:</span>
+                    <span className="ml-2 text-text font-medium">
+                      {processedData.quantity}m
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-light">Material:</span>
+                    <span className="ml-2 text-text font-medium">
+                      {formatCurrency(processedData.recommendedPricing.subtotal)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-light">Testing:</span>
+                    <span className="ml-2 text-text font-medium">
+                      {formatCurrency(processedData.recommendedPricing.testing_cost)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-light">Delivery:</span>
+                    <span className="ml-2 text-text font-medium">
+                      {formatCurrency(processedData.recommendedPricing.delivery_cost)}
+                    </span>
+                  </div>
+                  {processedData.recommendedPricing.urgency_adjustment > 0 && (
+                    <div>
+                      <span className="text-text-light">Urgency:</span>
+                      <span className="ml-2 text-error font-medium">
+                        +{formatCurrency(processedData.recommendedPricing.urgency_adjustment)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Other Options */}
+            {processedData.pricingList.length > 1 && (
+              <div>
+                <h4 className="font-semibold text-text mb-3">Alternative Options</h4>
+                <div className="space-y-2">
+                  {processedData.pricingList
+                    .filter(p => p.sku !== processedData.recommendedSku)
+                    .slice(0, 2)
+                    .map((pricing) => (
+                      <div key={pricing.sku} className="flex justify-between items-center p-3 border border-gray-200 rounded">
+                        <div>
+                          <p className="font-medium text-text">{pricing.product_name}</p>
+                          <p className="text-sm text-text-light">{pricing.sku}</p>
+                        </div>
+                        <span className="text-lg font-bold text-text">
+                          {formatCurrency(pricing.total)}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Success Message */}
+          <div className="bg-success/10 border border-success/30 rounded-lg p-4 text-center">
+            <p className="text-success font-semibold">
+              ✓ RFP processing complete! Redirecting to details...
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
