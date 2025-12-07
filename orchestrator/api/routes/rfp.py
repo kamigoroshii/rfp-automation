@@ -1,7 +1,7 @@
 """
 RFP endpoints
 """
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks
 from typing import List, Optional
 from datetime import datetime
 import uuid
@@ -62,7 +62,8 @@ async def submit_rfp(
     deadline: str = Form(...),
     scope: str = Form(...),
     testing_requirements: str = Form(""),
-    file: Optional[UploadFile] = File(None)
+    file: Optional[UploadFile] = File(None),
+    background_tasks: BackgroundTasks = None
 ):
     """
     Submit a new RFP for processing
@@ -92,7 +93,14 @@ async def submit_rfp(
             await rfp_service.save_rfp_file(rfp_id, file)
         
         # Trigger processing (async)
-        await rfp_service.process_rfp(rfp_id)
+        # Trigger processing (async background task)
+        # Note: In Sync/Test mode this might block if Sync logic is heavy, 
+        # but BackgroundTasks schedules it after response.
+        if background_tasks:
+            background_tasks.add_task(rfp_service.process_rfp, rfp_id)
+        else:
+            # Fallback if dependency injection fails (should not happen in FastAPI)
+            await rfp_service.process_rfp(rfp_id)
         
         return {
             "success": True,

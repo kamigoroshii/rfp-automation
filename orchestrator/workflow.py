@@ -164,6 +164,118 @@ class RFPWorkflow:
                 'status': 'error',
                 'message': str(e)
             }
+
+    async def process_next_rfp(self) -> Dict[str, Any]:
+        """
+        Process the next qualified RFP from the Redis queue
+        """
+        try:
+            # Lazy import to avoid circular dependency if any
+            from shared.cache.redis_manager import RedisManager
+            redis_mgr = RedisManager()
+            
+            # Pop next ticket
+            ticket_data = redis_mgr.pop_rfp("rfp_tickets")
+            
+            if not ticket_data:
+                return {'status': 'empty', 'message': 'No RFPs in queue'}
+                
+            logger.info(f"Processing RFP Ticket: {ticket_data.get('rfp_id')}")
+            
+            # Reconstruct RFPSummary object
+            rfp_summary = RFPSummary.from_dict(ticket_data)
+            
+            # Split Summary (Technical vs Commercial)
+            tech_summary, comm_summary = self._split_summary(rfp_summary)
+            
+            # Technical Agent Flow
+            # Pass technical scope/summary to Technical Agent
+            # Note: Currently TechnicalAgent expectations might need adjustment, 
+            # passing the full text for now or extracting specs first.
+            # Ideally we extract specs from the scope text first.
+            
+            # For this phase, we assume the DocumentAgent extracts from the scope text
+            # if no PDF is present (which is the case for most scraped RFPs).
+            # We'll treat the 'scope' text as the document source.
+            
+            # 1. Extract Specs from Text
+            # We need to expose a method in DocumentAgent for text-based extraction 
+            # or use regex directly here. The Requirement says "Technical Agent extracts Scope of Supply".
+            # Let's delegate to Technical Agent if it has that capability, or Document Agent.
+            # Looking at existing code, DocumentAgent has `extract_specifications`.
+            
+            # Let's assume we save the scope to a temp file or the agent handles text.
+            # For now, we will try to use the Document Agent's regex logic on the raw text.
+            # This might require a small update to DocumentAgent later to accept raw text.
+            # We'll simulate it by passing the scope string.
+            
+            # For now, let's proceed with the flow as defined:
+            
+            # 1. Technical Agent: Extract & Match
+            # We'll update TechnicalAgent to accept text input for extraction if needed,
+            # or pass it to DocumentAgent first.
+            # Let's use DocumentAgent for extraction as per original design, then Technical for matching.
+            
+            # Hack: Create a dummy spec object for now from the scope text
+            # In a real scenario, we'd update DocumentAgent to parse text strings.
+            specifications = self.document_agent.extract_specifications_from_text(tech_summary)
+            
+            # 2. Match Products
+            matches = self.technical_agent.match_products(specifications)
+            
+            # 3. Pricing Agent
+            pricing_list = self.pricing_agent.calculate_pricing(
+                rfp_id=rfp_summary.rfp_id,
+                matches=matches,
+                quantity=1000, # Default or extracted
+                deadline=rfp_summary.deadline,
+                testing_requirements=[] # Extracted from comm_summary
+            )
+            
+            # 4. Recommendation
+            recommended_sku = self.pricing_agent.get_recommended_product(pricing_list, matches)
+            
+            # 5. Send to Auditor (Placeholder for Module 4)
+            # ...
+            
+            return {
+                'status': 'success',
+                'rfp_id': rfp_summary.rfp_id,
+                'matches': [m.sku for m in matches],
+                'recommended': recommended_sku
+            }
+            
+        except Exception as e:
+            logger.error(f"Error processing ticket: {str(e)}")
+            return {'status': 'error', 'message': str(e)}
+
+    def _split_summary(self, rfp: RFPSummary) -> tuple[str, str]:
+        """
+        Split RFP scope into Technical and Commercial summaries
+        Returns: (technical_text, commercial_text)
+        """
+        full_text = rfp.scope
+        
+        # Simple keyword-based splitting
+        # In reality, this would be an LLM call or advanced NLP
+        
+        tech_keywords = ['cable', 'wire', 'voltage', 'conductor', 'xlpe', 'pvc', 'mm', 'kv']
+        comm_keywords = ['payment', 'delivery', 'warranty', 'penalty', 'terms', 'price']
+        
+        tech_lines = []
+        comm_lines = []
+        
+        for line in full_text.split('\n'):
+            line_lower = line.lower()
+            if any(k in line_lower for k in tech_keywords):
+                tech_lines.append(line)
+            elif any(k in line_lower for k in comm_keywords):
+                comm_lines.append(line)
+            else:
+                # Default to technical if ambiguous
+                tech_lines.append(line)
+                
+        return "\n".join(tech_lines), "\n".join(comm_lines)
     
     async def process_rfp_from_pdf(
         self,

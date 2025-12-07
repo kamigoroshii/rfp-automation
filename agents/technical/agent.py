@@ -154,63 +154,82 @@ class TechnicalAgent:
         rfp_specs: Dict[str, Any],
         product_specs: Dict[str, Any]
     ) -> float:
-        """Calculate match score between RFP and product specifications"""
-        score = 0.0
-        total_weight = 0.0
+        """
+        Calculate equal-weight SpecMatch%
+        Score = (Matched Params / Total Params Found) * 100
+        """
+        match_count = 0
+        total_params = 0
         
-        # Define weights for different specifications
-        weights = {
-            'voltage': 0.25,
-            'current': 0.20,
-            'conductor_material': 0.15,
-            'insulation_material': 0.15,
-            'conductor_size': 0.15,
-            'cable_type': 0.10
-        }
+        # Keys to check
+        check_keys = [
+            'voltage', 'conductor_size', 'conductor_material', 
+            'insulation_material', 'cable_type'
+        ]
         
-        for spec_key, weight in weights.items():
-            rfp_value = rfp_specs.get(spec_key)
-            product_value = product_specs.get(spec_key)
-            
-            if rfp_value and product_value:
-                total_weight += weight
+        for key in check_keys:
+            rfp_val = rfp_specs.get(key)
+            if rfp_val:
+                total_params += 1
+                prod_val = product_specs.get(key)
                 
-                # Check if values match
-                if self._specs_match(rfp_value, product_value):
-                    score += weight
+                if self._specs_match_normalized(rfp_val, prod_val):
+                    match_count += 1
+                    
+        if total_params == 0:
+            return 0.0
+            
+        return (match_count / total_params) # Returns 0.0 to 1.0 (multiply by 100 for percent later)
+
+    def _normalize_unit(self, value: str) -> str:
+        """
+        Normalize technical values
+        e.g. '11 kV' -> '11000', '185sqmm' -> '185'
+        """
+        if not value: return ""
+        val = str(value).lower().replace(" ", "")
         
-        # Normalize score
-        if total_weight > 0:
-            score = score / total_weight
+        # KV -> V
+        if 'kv' in val:
+            import re
+            nums = re.findall(r'(\d+\.?\d*)', val)
+            if nums:
+                try:
+                    return str(float(nums[0]) * 1000)
+                except: pass
+                
+        # MM2/SQMM -> Raw number
+        if 'mm' in val or 'sq' in val:
+            import re
+            nums = re.findall(r'(\d+\.?\d*)', val)
+            if nums:
+                return nums[0]
+                
+        return val
+
+    def _specs_match_normalized(self, rfp_val: str, prod_val: str) -> bool:
+        """Match using normalized values"""
+        if not rfp_val or not prod_val: return False
         
-        return score
-    
-    def _specs_match(self, rfp_value: str, product_value: str) -> bool:
-        """Check if two specification values match"""
-        if not rfp_value or not product_value:
-            return False
+        # Try direct match first
+        if str(rfp_val).lower() == str(prod_val).lower(): return True
         
-        rfp_lower = str(rfp_value).lower().strip()
-        product_lower = str(product_value).lower().strip()
+        # Try normalized match
+        norm_rfp = self._normalize_unit(rfp_val)
+        norm_prod = self._normalize_unit(prod_val)
         
-        # Exact match
-        if rfp_lower == product_lower:
+        if norm_rfp and norm_prod and norm_rfp == norm_prod:
             return True
-        
-        # Partial match
-        if rfp_lower in product_lower or product_lower in rfp_lower:
+            
+        # Fallback to substring for non-numeric (materials)
+        if norm_rfp in norm_prod or norm_prod in norm_rfp:
             return True
-        
-        # Extract numbers and compare
-        import re
-        rfp_nums = re.findall(r'\d+\.?\d*', rfp_lower)
-        product_nums = re.findall(r'\d+\.?\d*', product_lower)
-        
-        if rfp_nums and product_nums:
-            # Compare first number (often the most important)
-            return rfp_nums[0] == product_nums[0]
-        
+            
         return False
+
+    def _specs_match(self, rfp_value: str, product_value: str) -> bool:
+        """Legacy match wrapper"""
+        return self._specs_match_normalized(rfp_value, product_value)
     
     def _get_specification_alignment(
         self,

@@ -20,6 +20,12 @@ class LearningAgent:
         self.feedback_history = []
         self.performance_metrics = defaultdict(list)
         
+        # Load weights from config or use defaults
+        self.adaptive_weights = {
+            'match_quality': 0.7,
+            'price_competitiveness': 0.3
+        }
+        
         logger.info(f"{self.name} v{self.version} initialized")
     
     def process_feedback(
@@ -34,18 +40,6 @@ class LearningAgent:
     ) -> Dict[str, Any]:
         """
         Process user feedback and update metrics
-        
-        Args:
-            rfp_id: RFP identifier
-            feedback_type: Type of feedback (win/loss/accuracy)
-            rating: Rating score (1-5)
-            comments: Optional feedback comments
-            match_accuracy: Product match accuracy (0-1)
-            pricing_accuracy: Pricing accuracy (0-1)
-            response_time: Response time in seconds
-            
-        Returns:
-            Processing result with insights
         """
         try:
             logger.info(f"Processing feedback for RFP: {rfp_id}")
@@ -61,11 +55,14 @@ class LearningAgent:
                 'timestamp': datetime.now()
             }
             
-            # Store feedback
-            self.feedback_history.append(feedback_entry)
+            # Store feedback (Persistent)
+            self._save_feedback(feedback_entry)
             
             # Update metrics
             self._update_metrics(feedback_entry)
+            
+            # Adaptive Learning
+            self._adjust_weights(feedback_type)
             
             # Generate insights
             insights = self._generate_insights(feedback_entry)
@@ -74,7 +71,8 @@ class LearningAgent:
                 'status': 'processed',
                 'rfp_id': rfp_id,
                 'insights': insights,
-                'recommendations': self._get_recommendations(feedback_type, rating)
+                'recommendations': self._get_recommendations(feedback_type, rating),
+                'current_weights': self.adaptive_weights
             }
             
         except Exception as e:
@@ -83,7 +81,36 @@ class LearningAgent:
                 'status': 'error',
                 'error': str(e)
             }
-    
+            
+    def _save_feedback(self, feedback: Dict[str, Any]):
+        """Save feedback to database (Mock implementation for now)"""
+        # In a real implementation:
+        # session = SessionLocal()
+        # db_feedback = FeedbackModel(**feedback)
+        # session.add(db_feedback)
+        # session.commit()
+        
+        self.feedback_history.append(feedback)
+        logger.info("Feedback saved to storage")
+
+    def _adjust_weights(self, outcome: str):
+        """
+        Adjust scoring weights based on outcome.
+        - If 'win', reinforce current strategy.
+        - If 'loss', shift balance (e.g., if price too high, weight price more).
+        """
+        if outcome == 'win':
+            # Minor reinforcement - don't fix what isn't broken
+            pass
+        elif outcome == 'loss':
+            # Simple heuristic: Increase price importance slightly
+            # In V2, we would analyze the 'why' (e.g. price vs tech)
+            current_price_weight = self.adaptive_weights['price_competitiveness']
+            if current_price_weight < 0.6:
+                self.adaptive_weights['price_competitiveness'] += 0.05
+                self.adaptive_weights['match_quality'] -= 0.05
+                logger.info(f"Adjusted weights: Price +5% (New: {self.adaptive_weights})")
+
     def _update_metrics(self, feedback: Dict[str, Any]):
         """Update performance metrics"""
         
@@ -94,20 +121,20 @@ class LearningAgent:
         })
         
         # Update accuracy metrics
-        if feedback['match_accuracy'] is not None:
+        if feedback.get('match_accuracy') is not None:
             self.performance_metrics['match_accuracy'].append({
                 'accuracy': feedback['match_accuracy'],
                 'timestamp': feedback['timestamp']
             })
         
-        if feedback['pricing_accuracy'] is not None:
+        if feedback.get('pricing_accuracy') is not None:
             self.performance_metrics['pricing_accuracy'].append({
                 'accuracy': feedback['pricing_accuracy'],
                 'timestamp': feedback['timestamp']
             })
         
         # Update response time metrics
-        if feedback['response_time'] is not None:
+        if feedback.get('response_time') is not None:
             self.performance_metrics['response_time'].append({
                 'time': feedback['response_time'],
                 'timestamp': feedback['timestamp']

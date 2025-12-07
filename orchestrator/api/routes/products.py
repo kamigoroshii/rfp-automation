@@ -67,7 +67,7 @@ async def search_products(
         results = await product_service.search_products(query=query, limit=limit)
         return {
             "query": query,
-            "results": results,
+            "products": results,
             "total": len(results)
         }
     except Exception as e:

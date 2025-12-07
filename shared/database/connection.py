@@ -134,4 +134,17 @@ class DatabaseManager:
 
 
 # Global database manager instance
-db_manager = DatabaseManager()
+# db_manager = DatabaseManager()
+
+_db_manager = None
+
+def get_db_manager():
+    """Lazy initialization of database manager"""
+    global _db_manager
+    if _db_manager is None:
+        try:
+            _db_manager = DatabaseManager()
+        except Exception as e:
+            logger.error(f"Could not initialize DatabaseManager: {e}")
+            return None
+    return _db_manager

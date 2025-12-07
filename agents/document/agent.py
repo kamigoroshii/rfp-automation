@@ -20,6 +20,52 @@ class DocumentAgent:
         self.version = "1.0.0"
         logger.info(f"{self.name} v{self.version} initialized")
     
+    def extract_specifications_from_text(self, text: str) -> Specification:
+        """
+        Extract technical specifications from raw text
+        
+        Args:
+            text: Raw RFP text
+            
+        Returns:
+            Specification object
+        """
+        try:
+            logger.info("Extracting specifications from raw text")
+            
+            # Extract specifications
+            specifications = {
+                'voltage': self._extract_voltage(text),
+                'current': self._extract_current(text),
+                'conductor_material': self._extract_conductor_material(text),
+                'insulation_material': self._extract_insulation_material(text),
+                'conductor_size': self._extract_conductor_size(text),
+                'cable_type': self._extract_cable_type(text),
+                'length': self._extract_length(text),
+                'standards': self._extract_standards(text),
+                'raw_text_sample': text[:500]
+            }
+            
+            # Extract testing requirements
+            testing_requirements = self._extract_testing_requirements(text)
+            
+            # Calculate confidence score
+            confidence = self._calculate_confidence(specifications, testing_requirements)
+            
+            # Create a dummy ID for text-based extraction if not provided context
+            rfp_id = "TEXT-EXTRACT"
+            
+            return Specification(
+                rfp_id=rfp_id,
+                specifications=specifications,
+                testing_requirements=testing_requirements,
+                confidence_score=confidence
+            )
+            
+        except Exception as e:
+            logger.error(f"Error extracting specifications from text: {str(e)}")
+            raise
+
     def parse_pdf(self, pdf_path: str) -> Dict[str, Any]:
         """
         Parse PDF document and extract text

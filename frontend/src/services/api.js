@@ -2,7 +2,7 @@ import axios from 'axios';
 import { mockRFPs, mockRFPDetails, mockAnalytics, mockProducts } from './mockData';
 
 // Set to true to use mock data, false to use real API
-const USE_MOCK_DATA = true;
+const USE_MOCK_DATA = false;
 
 const api = axios.create({
   baseURL: '/api',
@@ -22,12 +22,12 @@ export const rfpAPI = {
     if (USE_MOCK_DATA) {
       await delay(300);
       let filteredRFPs = [...mockRFPs];
-      
+
       // Apply filters if provided
       if (params.status) {
         filteredRFPs = filteredRFPs.filter(rfp => rfp.status === params.status);
       }
-      
+
       return { data: { rfps: filteredRFPs, total: filteredRFPs.length } };
     }
     return api.get('/rfp/list', { params });
@@ -76,10 +76,10 @@ export const rfpAPI = {
         match_score: rfpData.match_score || 0,
         total_estimate: rfpData.total_estimate || 0
       };
-      
+
       // Add to mock RFPs list
       mockRFPs.unshift(newRFP);
-      
+
       // Create detailed entry if processing results are included
       if (rfpData.specifications && rfpData.matched_products) {
         mockRFPDetails[newRFPId] = {
@@ -97,7 +97,7 @@ export const rfpAPI = {
           confidence: rfpData.match_score || 0
         };
       }
-      
+
       return { data: newRFP };
     }
     return api.post('/rfp/submit', rfpData);

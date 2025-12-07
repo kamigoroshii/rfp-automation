@@ -1,0 +1,27 @@
+ Volume in drive F is New Volume
+ Volume Serial Number is E4C5-7F4B
+
+ Directory of f:\eytech
+
+07-12-2025  18:14    <DIR>          .
+09-11-2025  15:30             1,023 .env
+09-11-2025  15:13             1,013 .env.template
+07-12-2025  17:42    <DIR>          .github
+07-12-2025  17:58               809 .gitignore
+09-11-2025  15:46    <DIR>          agents
+09-11-2025  06:51    <DIR>          data
+07-12-2025  18:14                 0 dir_test.txt
+09-11-2025  06:51    <DIR>          docker
+07-12-2025  17:50    <DIR>          docs
+09-11-2025  20:04    <DIR>          frontend
+07-12-2025  17:58            14,493 IMPLEMENTATION_STATUS.md
+06-12-2025  08:26    <DIR>          orchestrator
+07-12-2025  17:58            12,662 README.md
+06-12-2025  08:24               522 requirements.txt
+07-12-2025  18:13               167 run_verify.bat
+09-11-2025  15:14    <DIR>          shared
+07-12-2025  18:12    <DIR>          tests
+09-11-2025  15:27    <DIR>          venv
+07-12-2025  17:58            21,221 WORK_DIVISION.md
+               9 File(s)         51,910 bytes
+              11 Dir(s)  57,169,776,640 bytes free

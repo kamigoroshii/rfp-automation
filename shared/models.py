@@ -18,6 +18,9 @@ class RFPSummary:
     testing_requirements: List[str]
     discovered_at: datetime
     status: str  # new, processing, completed, submitted, failed
+    go_no_go_score: float = 0.0
+    client_tier: str = "Standard"
+    project_value: float = 0.0
     
     def to_json(self) -> str:
         """Convert to JSON string"""
@@ -31,6 +34,13 @@ class RFPSummary:
         """Create from dictionary"""
         data['deadline'] = datetime.fromisoformat(data['deadline'])
         data['discovered_at'] = datetime.fromisoformat(data['discovered_at'])
+        # Handle optional fields if they don't exist in legacy data
+        if 'go_no_go_score' not in data:
+            data['go_no_go_score'] = 0.0
+        if 'client_tier' not in data:
+            data['client_tier'] = "Standard"
+        if 'project_value' not in data:
+            data['project_value'] = 0.0
         return cls(**data)
 
 

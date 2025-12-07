@@ -5,7 +5,7 @@ import logging
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import uuid
 
 from shared.models import RFPSummary
@@ -19,6 +19,15 @@ class SalesAgent:
     def __init__(self):
         self.name = "SalesAgent"
         self.version = "1.0.0"
+        
+        # Initialize Redis
+        self.redis = None
+        try:
+            from shared.cache.redis_manager import RedisManager
+            self.redis = RedisManager()
+        except ImportError:
+            logger.warning("RedisManager not found. Redis features disabled.")
+            
         logger.info(f"{self.name} v{self.version} initialized")
     
     def discover_rfps_from_url(self, url: str) -> List[RFPSummary]:
@@ -49,18 +58,138 @@ class SalesAgent:
                 try:
                     rfp = self._parse_rfp_element(element)
                     if rfp:
-                        rfps.append(rfp)
+                        # Qualification Check (Go/No-Go)
+                        if self._evaluate_rfp(rfp):
+                            rfps.append(rfp)
+                            self._push_to_queue(rfp)
+                        else:
+                            logger.info(f"RFP {rfp.rfp_id} rejected by Go/No-Go filter")
+                            
                 except Exception as e:
                     logger.error(f"Error parsing RFP element: {str(e)}")
                     continue
             
-            logger.info(f"Discovered {len(rfps)} RFPs from {url}")
+            logger.info(f"Discovered {len(rfps)} qualified RFPs from {url}")
             return rfps
             
         except Exception as e:
             logger.error(f"Error discovering RFPs from URL: {str(e)}")
             return []
-    
+
+    def check_emails_imap(self) -> List[RFPSummary]:
+        """
+        Check configured IMAP account for new RFPs (Real-time integration)
+        Requires EMAIL_HOST, EMAIL_USER, EMAIL_PASSWORD env vars.
+        """
+        import os
+        host = os.getenv("EMAIL_HOST")
+        user = os.getenv("EMAIL_USER")
+        password = os.getenv("EMAIL_PASSWORD")
+        
+        if not (host and user and password):
+            logger.info("IMAP credentials not found. Real-time email monitoring disabled.")
+            return []
+
+        try:
+            import imaplib
+            import email
+            from email.header import decode_header
+
+            logger.info(f"Connecting to IMAP server: {host}")
+            mail = imaplib.IMAP4_SSL(host)
+            mail.login(user, password)
+            mail.select("inbox")
+
+            # Search for all emails (or specific subjects)
+            status, messages = mail.search(None, "UNSEEN")
+            
+            rfps = []
+            if status == "OK":
+                email_ids = messages[0].split()
+                for e_id in email_ids:
+                    # Fetch email body
+                    res, msg_data = mail.fetch(e_id, "(RFC822)")
+                    for response_part in msg_data:
+                        if isinstance(response_part, tuple):
+                            msg = email.message_from_bytes(response_part[1])
+                            
+                            # Decode subject
+                            subject, encoding = decode_header(msg["Subject"])[0]
+                            if isinstance(subject, bytes):
+                                subject = subject.decode(encoding if encoding else "utf-8")
+                            
+                            sender = msg.get("From")
+                            
+                            # Get body
+                            body = ""
+                            if msg.is_multipart():
+                                for part in msg.walk():
+                                    if part.get_content_type() == "text/plain":
+                                        body = part.get_payload(decode=True).decode()
+                                        break
+                            else:
+                                body = msg.get_payload(decode=True).decode()
+                            
+                            # Ingest
+                            email_content = {
+                                "subject": subject,
+                                "sender": sender,
+                                "body": body
+                            }
+                            
+                            rfp = self.ingest_email_rfp(email_content)
+                            if rfp:
+                                rfps.append(rfp)
+                                
+            mail.close()
+            mail.logout()
+            return rfps
+            
+        except Exception as e:
+            logger.error(f"Error checking IMAP: {str(e)}")
+            return []
+
+    def ingest_email_rfp(self, email_content: Dict[str, Any]) -> Optional[RFPSummary]:
+        """
+        Ingest RFP from email content (Simulated)
+        
+        Args:
+            email_content: Dict with 'subject', 'body', 'sender', 'attachments'
+            
+        Returns:
+            RFPSummary object if qualified
+        """
+        try:
+            logger.info(f"Ingesting email RFP: {email_content.get('subject')}")
+            
+            rfp_id = f"RFP-EMAIL-{datetime.now().year}-{str(uuid.uuid4())[:8].upper()}"
+            
+            # Extract deadline (simulated logic)
+            deadline = self._parse_deadline(email_content.get('body', ''))
+            
+            rfp = RFPSummary(
+                rfp_id=rfp_id,
+                title=email_content.get('subject', 'Untitled Email RFP'),
+                source=f"Email: {email_content.get('sender')}",
+                deadline=deadline,
+                scope=email_content.get('body', '')[:500], # First 500 chars as scope preview
+                testing_requirements=[],
+                discovered_at=datetime.now(),
+                status='new',
+                client_tier=self._determine_client_tier(email_content.get('sender')),
+                project_value=0.0  # Unknown initially
+            )
+            
+            if self._evaluate_rfp(rfp):
+                self._push_to_queue(rfp)
+                return rfp
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error ingesting email RFP: {str(e)}")
+            return None
+
     def _parse_rfp_element(self, element) -> Optional[RFPSummary]:
         """Parse RFP information from HTML element"""
         try:
@@ -79,7 +208,16 @@ class SalesAgent:
             scope = element.find('p', class_='scope')
             scope_text = scope.text.strip() if scope else ''
             
-            return RFPSummary(
+            # Estimate Project Value from text (Mock logic)
+            project_value = 0.0
+            value_text = element.find('span', class_='value')
+            if value_text:
+                import re
+                nums = re.findall(r'\d+', value_text.text.replace(',', ''))
+                if nums:
+                    project_value = float(nums[0])
+
+            rfp = RFPSummary(
                 rfp_id=rfp_id,
                 title=title_text,
                 source=source_url,
@@ -87,37 +225,123 @@ class SalesAgent:
                 scope=scope_text,
                 testing_requirements=[],
                 discovered_at=datetime.now(),
-                status='new'
+                status='new',
+                client_tier="Standard", # Default from web
+                project_value=project_value
             )
+            return rfp
         except Exception as e:
             logger.error(f"Error parsing RFP element: {str(e)}")
             return None
     
-    def _parse_deadline(self, deadline_text: str) -> datetime:
+    def _parse_deadline(self, text: str) -> datetime:
         """Parse deadline text to datetime"""
         try:
             # Try various date formats
             formats = [
-                "%Y-%m-%d",
-                "%d/%m/%Y",
-                "%m/%d/%Y",
-                "%d-%m-%Y"
+                "%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y"
             ]
             
-            for fmt in formats:
-                try:
-                    return datetime.strptime(deadline_text, fmt)
-                except ValueError:
-                    continue
+            # Simple regex to find date-like strings
+            import re
+            date_patterns = [
+                r'\d{4}-\d{2}-\d{2}',
+                r'\d{2}/\d{2}/\d{4}',
+                r'\d{2}-\d{2}-\d{4}'
+            ]
             
-            # Default to 30 days from now if parsing fails
+            potential_dates = []
+            for pattern in date_patterns:
+                matches = re.findall(pattern, text)
+                potential_dates.extend(matches)
+                
+            for date_str in potential_dates:
+                for fmt in formats:
+                    try:
+                        return datetime.strptime(date_str, fmt)
+                    except ValueError:
+                        continue
+            
+            # Default to 45 days if not found
             from datetime import timedelta
-            return datetime.now() + timedelta(days=30)
+            return datetime.now() + timedelta(days=45)
             
         except Exception:
             from datetime import timedelta
-            return datetime.now() + timedelta(days=30)
-    
+            return datetime.now() + timedelta(days=45)
+            
+    def _determine_client_tier(self, sender: str) -> str:
+        """Determine client tier based on sender domain/name"""
+        if not sender:
+            return "Standard"
+        sender_lower = sender.lower()
+        if any(x in sender_lower for x in ['gov', 'energy', 'power', 'public']):
+            return "Tier-1"
+        if any(x in sender_lower for x in ['infra', 'build', 'construct']):
+            return "Tier-2"
+        return "Standard"
+
+    def _evaluate_rfp(self, rfp: RFPSummary) -> bool:
+        """
+        Evaluate RFP for Go/No-Go decision
+        Criteria:
+        1. Deadline > 90 days NO-GO (too far)
+        2. Deadline < 3 days NO-GO (too urgent, unless High Value)
+        3. Score calculation
+        """
+        try:
+            # 1. Check Deadline Window (Target: Next 3 months = 90 days)
+            days_until = (rfp.deadline - datetime.now()).days
+            
+            if days_until > 90:
+                logger.info(f"RFP {rfp.rfp_id} Rejected: Deadline > 90 days ({days_until})")
+                return False
+            
+            if days_until < 0:
+                 logger.info(f"RFP {rfp.rfp_id} Rejected: Expired")
+                 return False
+
+            # Calculate Qualification Score (0-100)
+            score = 0.0
+            
+            # Keyword Relevance (Basic check)
+            keywords = ['cable', 'wire', 'conductor', 'supply', 'tender']
+            if any(k in rfp.title.lower() for k in keywords):
+                score += 30
+            if any(k in rfp.scope.lower() for k in keywords):
+                score += 20
+                
+            # Client Tier Bonus
+            if rfp.client_tier == "Tier-1":
+                score += 30
+            elif rfp.client_tier == "Tier-2":
+                score += 15
+                
+            # Project Value Bonus (if known)
+            if rfp.project_value > 1000000:
+                score += 20
+            elif rfp.project_value > 100000:
+                score += 10
+                
+            rfp.go_no_go_score = score
+            
+            # Threshold
+            if score >= 40:
+                return True
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error evaluating RFP: {str(e)}")
+            return False # Fail safe
+
+    def _push_to_queue(self, rfp: RFPSummary):
+        """Push qualified RFP to Redis queue"""
+        if self.redis and self.redis.connected:
+            self.redis.push_rfp(json.loads(rfp.to_json()))
+            logger.info(f"Pushed RFP {rfp.rfp_id} to processing queue")
+        else:
+            logger.warning("Redis not available, skipping queue push")
+
     def summarize_rfp(self, rfp_text: str) -> Dict[str, any]:
         """
         Create a summary of RFP text
@@ -209,9 +433,8 @@ class SalesAgent:
             
             if not rfp.source:
                 return False
-            
-            if not rfp.deadline or rfp.deadline < datetime.now():
-                return False
+                
+            # Note: deadline check is now done in _evaluate_rfp with Go/No-Go logic
             
             return True
             

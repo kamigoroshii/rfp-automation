@@ -178,6 +178,61 @@ class PricingAgent:
         
         return 0.0
     
+        return None
+        
+    def calculate_bid_band(self, sku: str) -> Dict[str, float]:
+        """
+        Calculate suggested bid band (P25, Median, P75) based on history
+        """
+        history = self._get_historical_prices(sku)
+        
+        if not history:
+            # Fallback if no history
+            base = self.base_prices.get(sku, 100.0)
+            return {
+                'p25': base * 0.95,
+                'median': base,
+                'p75': base * 1.10
+            }
+            
+        import statistics
+        prices = sorted(history)
+        n = len(prices)
+        
+        # Simple quartile calculation
+        median = statistics.median(prices)
+        
+        # P25 approx
+        p25_idx = int(n * 0.25)
+        p25 = prices[p25_idx]
+        
+        # P75 approx
+        p75_idx = int(n * 0.75)
+        p75 = prices[p75_idx]
+        
+        return {
+            'p25': p25,
+            'median': median,
+            'p75': p75
+        }
+
+    def _get_historical_prices(self, sku: str) -> List[float]:
+        """
+        Fetch historical tender unit prices for SKU.
+        In production, this queries the 'historical_tender_lines' table.
+        """
+        # Mock Data Generator
+        import random
+        base = self.base_prices.get(sku, 500.0)
+        
+        # Simulate 10 past tenders with +/- 20% variance
+        history = []
+        for _ in range(10):
+            variance = random.uniform(0.8, 1.2)
+            history.append(base * variance)
+            
+        return history
+
     def get_recommended_product(
         self,
         pricing_list: List[PricingBreakdown],
@@ -185,13 +240,9 @@ class PricingAgent:
     ) -> str:
         """
         Get recommended product SKU based on pricing and match score
-        
-        Args:
-            pricing_list: List of PricingBreakdown objects
-            matches: List of ProductMatch objects
-            
-        Returns:
-            Recommended SKU
+        Updated Strategy:
+        - If Match Score > 0.9, we can price aggressively (Median * 0.95)
+        - If Match Score < 0.9, price conservatively (Median * 1.05)
         """
         if not pricing_list or not matches:
             return None
@@ -199,41 +250,45 @@ class PricingAgent:
         # Create match score dictionary
         match_scores = {m.sku: m.match_score for m in matches}
         
-        # Calculate recommendation score (combination of price and match)
         recommendations = []
         
         for pricing in pricing_list:
             match_score = match_scores.get(pricing.sku, 0.0)
             
-            # Normalize total price (lower is better, scale 0-1)
-            max_total = max(p.total for p in pricing_list)
-            price_score = 1.0 - (pricing.total / max_total)
+            # Calculate band
+            band = self.calculate_bid_band(pricing.sku)
             
-            # Combined score (70% match quality, 30% price)
-            combined_score = (match_score * 0.7) + (price_score * 0.3)
+            # Dynamic Recommendation Logic
+            if match_score >= 0.9:
+                target_price = band['median'] * 0.95 # Aggressive win
+            else:
+                target_price = band['median'] * 1.05 # Conservative margin
+                
+            # Compare calculated cost with market target
+            # Profit Margin = (Target - TotalCost) / Target
+            margin = (target_price - pricing.total) / target_price
+            
+            # Score = Match Quality (60%) + Margin Health (40%)
+            # Margin score: 20% margin = 1.0, 0% = 0.5, negative = 0
+            margin_score = max(0, min(1.0, 0.5 + (margin * 2.5)))
+            
+            combined_score = (match_score * 0.6) + (margin_score * 0.4)
             
             recommendations.append({
                 'sku': pricing.sku,
                 'score': combined_score,
-                'match_score': match_score,
-                'price_score': price_score,
-                'total': pricing.total
+                'target_bid': target_price,
+                'projected_margin': margin * 100
             })
         
         # Sort by combined score
         recommendations.sort(key=lambda x: x['score'], reverse=True)
         
-        # Return top recommendation
         if recommendations:
-            recommended = recommendations[0]
-            logger.info(
-                f"Recommended SKU: {recommended['sku']} "
-                f"(score: {recommended['score']:.2f}, "
-                f"match: {recommended['match_score']:.2f}, "
-                f"price: ₹{recommended['total']:,.2f})"
-            )
-            return recommended['sku']
-        
+            rec = recommendations[0]
+            logger.info(f"Recommended {rec['sku']}: Score {rec['score']:.2f}, Margin {rec['projected_margin']:.1f}%")
+            return rec['sku']
+            
         return None
     
     def apply_discount(
