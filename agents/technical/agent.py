@@ -20,23 +20,31 @@ class TechnicalAgent:
         self.vector_db = None
         logger.info(f"{self.name} v{self.version} initialized")
     
+    
     def initialize_vector_db(self):
         """Initialize vector database connection (Qdrant)"""
         try:
-            # TODO: Initialize Qdrant client
-            # from qdrant_client import QdrantClient
-            # self.vector_db = QdrantClient(host="localhost", port=6333)
-            logger.info("Vector database initialized")
+            from qdrant_client import QdrantClient
+            import os
+            
+            host = os.getenv("QDRANT_HOST", "localhost")
+            port = int(os.getenv("QDRANT_PORT", 6333))
+            
+            self.vector_db = QdrantClient(host=host, port=port)
+            logger.info(f"Vector database initialized at {host}:{port}")
         except Exception as e:
             logger.error(f"Error initializing vector DB: {str(e)}")
+    
     
     def initialize_embedding_model(self):
         """Initialize sentence embedding model"""
         try:
-            # TODO: Initialize embedding model
-            # from sentence_transformers import SentenceTransformer
-            # self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-            logger.info("Embedding model initialized")
+            from sentence_transformers import SentenceTransformer
+            import os
+            
+            model_name = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+            self.embedding_model = SentenceTransformer(model_name)
+            logger.info(f"Embedding model initialized: {model_name}")
         except Exception as e:
             logger.error(f"Error initializing embedding model: {str(e)}")
     
@@ -63,11 +71,19 @@ class TechnicalAgent:
             # Create search query from specifications
             query = self._create_search_query(specifications)
             
-            # Perform semantic search (using rule-based matching for now)
-            matches = self._rule_based_matching(specifications, top_k)
+            # Perform semantic search (hybrid approach)
+            matches = []
             
-            # For production: use vector search
-            # matches = self._vector_search(query, top_k)
+            # 1. Try Vector Search first if DB initialized
+            if self.vector_db and self.embedding_model:
+                try:
+                    matches = self.semantic_search(query, top_k)
+                except Exception as e:
+                    logger.warning(f"Vector search failed, falling back to rules: {e}")
+            
+            # 2. Fallback or augmentation with rules
+            if not matches:
+                matches = self._rule_based_matching(specifications, top_k)
             
             logger.info(f"Found {len(matches)} product matches")
             return matches
@@ -303,33 +319,35 @@ class TechnicalAgent:
         try:
             logger.info(f"Performing semantic search: {query}")
             
-            # TODO: Implement vector search with Qdrant
-            # For now, return mock results
-            mock_products = self._get_mock_products()
+            if not self.vector_db or not self.embedding_model:
+                logger.warning("Vector DB or Model not initialized")
+                return []
+                
+            import os
+            collection_name = os.getenv("QDRANT_COLLECTION", "products")
             
-            # Simple keyword matching
+            # Generate embedding
+            vector = self.embedding_model.encode(query).tolist()
+            
+            # Search Qdrant
+            search_result = self.vector_db.search(
+                collection_name=collection_name,
+                query_vector=vector,
+                limit=top_k
+            )
+            
             results = []
-            query_lower = query.lower()
-            
-            for product in mock_products:
-                score = 0.0
+            for hit in search_result:
+                payload = hit.payload
+                # Add match score to payload for consistency
+                payload['relevance_score'] = hit.score
+                # Add dummy datasheet if missing
+                if 'datasheet_url' not in payload:
+                    payload['datasheet_url'] = ''
+                    
+                results.append(payload)
                 
-                # Check if query terms appear in product
-                if query_lower in product['product_name'].lower():
-                    score += 0.5
-                
-                for spec_val in product['specifications'].values():
-                    if isinstance(spec_val, str) and query_lower in spec_val.lower():
-                        score += 0.1
-                
-                if score > 0:
-                    product['relevance_score'] = score
-                    results.append(product)
-            
-            # Sort by relevance
-            results.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
-            
-            return results[:top_k]
+            return results
             
         except Exception as e:
             logger.error(f"Error in semantic search: {str(e)}")

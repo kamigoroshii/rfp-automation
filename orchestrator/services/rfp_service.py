@@ -9,6 +9,7 @@ import uuid
 
 from shared.models import RFPSummary, Feedback
 from shared.database.connection import get_db_connection
+from orchestrator.tasks.rfp_tasks import process_rfp_task
 
 logger = logging.getLogger(__name__)
 
@@ -224,8 +225,37 @@ class RFPService:
             # Update status to processing
             await self.update_status(rfp_id, "processing")
             
-            # TODO: Trigger orchestrator to process RFP
-            # This will be handled by the orchestrator module
+            # Trigger Celery task
+            # TODO: Get URL or file path from DB/Logic
+            # For now, we assume URL if source is a URL, else file
+            
+            # Temporary: Fetch source from DB to decide
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT source FROM rfps WHERE rfp_id = %s", (rfp_id,))
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            source = row[0] if row else ""
+            
+            if source.startswith('http'):
+                process_rfp_task.delay(rfp_id=rfp_id, url=source)
+            else:
+                # Assume it's a file we uploaded (naming convention used in save_rfp_file)
+                # Ideally config/db should store the file path. 
+                # For this MVP, we reconstructed it or need to save it in DB.
+                # Let's check the upload dir
+                upload_dir = "data/uploads"
+                path = None
+                if os.path.exists(upload_dir):
+                    for f in os.listdir(upload_dir):
+                        if f.startswith(rfp_id):
+                            path = os.path.join(upload_dir, f)
+                            break
+                            
+                process_rfp_task.delay(rfp_id=rfp_id, pdf_path=path)
+                
             logger.info(f"Triggered processing for RFP {rfp_id}")
         except Exception as e:
             logger.error(f"Error processing RFP: {str(e)}")
