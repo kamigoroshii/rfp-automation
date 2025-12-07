@@ -59,3 +59,21 @@ data/sample_data/
 data/uploads/
 *.pdf
 *.csv
+
+# Node/Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.cache/
+frontend/package-lock.json
+
+# Backend specific
+*.pyc
+.mypy_cache/
+.ruff_cache/
+
+# Personal dev files (prevent conflicts)
+**/scratch.*
+**/temp.*
+**/personal-notes.*
+**/.local/
