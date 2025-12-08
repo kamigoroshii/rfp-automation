@@ -1,0 +1,324 @@
+import React, { useEffect, useState } from 'react';
+import { Mail, FileText, Download, Calendar, User, Paperclip, Eye, CheckCircle, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+const EmailInbox = () => {
+    const [emails, setEmails] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState('all'); // all, processed, pending
+
+    useEffect(() => {
+        loadEmails();
+    }, []);
+
+    const loadEmails = async () => {
+        try {
+            // Mock data for now - will connect to real API later
+            const mockEmails = [
+                {
+                    id: 'email-001',
+                    subject: 'RFP: Supply of 11kV XLPE Cables for Metro Project',
+                    sender: 'procurement@metro.gov.in',
+                    received_at: '2025-12-08T10:30:00Z',
+                    body_preview: 'We are seeking quotations for supply of 11kV XLPE cables with aluminum conductor. Total requirement: 5000 meters...',
+                    attachments: [
+                        {
+                            filename: 'RFP_Metro_Cables.pdf',
+                            size: 2456789,
+                            path: 'data/uploads/a1b2c3d4_RFP_Metro_Cables.pdf'
+                        },
+                        {
+                            filename: 'Technical_Specifications.pdf',
+                            size: 1234567,
+                            path: 'data/uploads/e5f6g7h8_Technical_Specifications.pdf'
+                        }
+                    ],
+                    rfp_created: true,
+                    rfp_id: 'RFP-EMAIL-2025-001',
+                    status: 'processed'
+                },
+                {
+                    id: 'email-002',
+                    subject: 'Tender Notice: HT Cable Supply for Industrial Plant',
+                    sender: 'tenders@industry.com',
+                    received_at: '2025-12-08T09:15:00Z',
+                    body_preview: 'Invitation for bids for supply of 33kV XLPE cables. Deadline: December 25, 2025. Please find attached tender document...',
+                    attachments: [
+                        {
+                            filename: 'Tender_Document.pdf',
+                            size: 3456789,
+                            path: 'data/uploads/i9j0k1l2_Tender_Document.pdf'
+                        }
+                    ],
+                    rfp_created: true,
+                    rfp_id: 'RFP-EMAIL-2025-002',
+                    status: 'processed'
+                },
+                {
+                    id: 'email-003',
+                    subject: 'Cable Supply Inquiry',
+                    sender: 'purchasing@construction.co.in',
+                    received_at: '2025-12-08T08:00:00Z',
+                    body_preview: 'We are looking for LT power cables for our commercial building project. Can you provide a quote?',
+                    attachments: [],
+                    rfp_created: false,
+                    rfp_id: null,
+                    status: 'pending'
+                },
+                {
+                    id: 'email-004',
+                    subject: 'RFQ: Control Cables for Automation System',
+                    sender: 'procurement@automation.net',
+                    received_at: '2025-12-07T16:45:00Z',
+                    body_preview: 'Request for quotation for control cables, 12 core, 1.5 sq.mm. Quantity: 2000 meters. Attached specifications...',
+                    attachments: [
+                        {
+                            filename: 'Control_Cable_Specs.pdf',
+                            size: 987654,
+                            path: 'data/uploads/m3n4o5p6_Control_Cable_Specs.pdf'
+                        }
+                    ],
+                    rfp_created: true,
+                    rfp_id: 'RFP-EMAIL-2025-003',
+                    status: 'processed'
+                }
+            ];
+
+            setEmails(mockEmails);
+        } catch (error) {
+            console.error('Error loading emails:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filteredEmails = emails.filter(email => {
+        if (filter === 'all') return true;
+        if (filter === 'processed') return email.status === 'processed';
+        if (filter === 'pending') return email.status === 'pending';
+        return true;
+    });
+
+    const formatFileSize = (bytes) => {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    };
+
+    const getStatusBadge = (status) => {
+        if (status === 'processed') {
+            return (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                    <CheckCircle size={14} />
+                    Processed
+                </span>
+            );
+        }
+        return (
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+                <Clock size={14} />
+                Pending
+            </span>
+        );
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div>
+                <div className="flex items-center gap-3 mb-2">
+                    <Mail className="text-primary" size={32} />
+                    <h2 className="text-3xl font-bold text-text">Email Inbox</h2>
+                </div>
+                <p className="text-text-light">RFPs discovered from email monitoring</p>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-text-light text-sm">Total Emails</span>
+                        <Mail className="text-blue-500" size={20} />
+                    </div>
+                    <div className="text-3xl font-bold text-text">{emails.length}</div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-text-light text-sm">Processed</span>
+                        <CheckCircle className="text-green-500" size={20} />
+                    </div>
+                    <div className="text-3xl font-bold text-green-600">
+                        {emails.filter(e => e.status === 'processed').length}
+                    </div>
+                    <div className="text-xs text-text-light mt-1">RFPs created</div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-text-light text-sm">Attachments</span>
+                        <Paperclip className="text-purple-500" size={20} />
+                    </div>
+                    <div className="text-3xl font-bold text-purple-600">
+                        {emails.reduce((sum, e) => sum + e.attachments.length, 0)}
+                    </div>
+                    <div className="text-xs text-text-light mt-1">PDFs downloaded</div>
+                </div>
+            </div>
+
+            {/* Filter */}
+            <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-text">Filter:</span>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setFilter('all')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'all'
+                                    ? 'bg-primary text-white'
+                                    : 'bg-gray-100 text-text hover:bg-gray-200'
+                                }`}
+                        >
+                            All ({emails.length})
+                        </button>
+                        <button
+                            onClick={() => setFilter('processed')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'processed'
+                                    ? 'bg-green-600 text-white'
+                                    : 'bg-gray-100 text-text hover:bg-gray-200'
+                                }`}
+                        >
+                            Processed ({emails.filter(e => e.status === 'processed').length})
+                        </button>
+                        <button
+                            onClick={() => setFilter('pending')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'pending'
+                                    ? 'bg-yellow-600 text-white'
+                                    : 'bg-gray-100 text-text hover:bg-gray-200'
+                                }`}
+                        >
+                            Pending ({emails.filter(e => e.status === 'pending').length})
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Email List */}
+            <div className="space-y-4">
+                {filteredEmails.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow-md p-12 text-center">
+                        <Mail className="mx-auto text-gray-300 mb-4" size={48} />
+                        <p className="text-text-light">No emails found</p>
+                    </div>
+                ) : (
+                    filteredEmails.map((email) => (
+                        <div
+                            key={email.id}
+                            className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6"
+                        >
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <h3 className="text-lg font-bold text-text">{email.subject}</h3>
+                                        {getStatusBadge(email.status)}
+                                    </div>
+
+                                    <div className="flex items-center gap-4 text-sm text-text-light mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <User size={16} />
+                                            <span>{email.sender}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Calendar size={16} />
+                                            <span>{new Date(email.received_at).toLocaleString()}</span>
+                                        </div>
+                                    </div>
+
+                                    <p className="text-text-light text-sm mb-4">{email.body_preview}</p>
+
+                                    {/* Attachments */}
+                                    {email.attachments.length > 0 && (
+                                        <div className="mb-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Paperclip size={16} className="text-text-light" />
+                                                <span className="text-sm font-medium text-text">
+                                                    {email.attachments.length} Attachment{email.attachments.length > 1 ? 's' : ''}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {email.attachments.map((attachment, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <FileText className="text-red-500" size={20} />
+                                                            <div>
+                                                                <div className="text-sm font-medium text-text">{attachment.filename}</div>
+                                                                <div className="text-xs text-text-light">{formatFileSize(attachment.size)}</div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+                                                                <Eye size={18} className="text-text-light" />
+                                                            </button>
+                                                            <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+                                                                <Download size={18} className="text-text-light" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* RFP Link */}
+                                    {email.rfp_created && email.rfp_id && (
+                                        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                            <CheckCircle className="text-green-600" size={20} />
+                                            <span className="text-sm text-green-800">
+                                                RFP Created:
+                                            </span>
+                                            <Link
+                                                to={`/rfp/${email.rfp_id}`}
+                                                className="text-sm font-medium text-primary hover:underline"
+                                            >
+                                                {email.rfp_id}
+                                            </Link>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {/* Info Box */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                    <Mail className="text-blue-600 flex-shrink-0 mt-1" size={20} />
+                    <div>
+                        <h4 className="font-semibold text-blue-900 mb-1">Email Monitoring Active</h4>
+                        <p className="text-sm text-blue-800">
+                            The system automatically checks your email inbox every hour for new RFPs.
+                            Emails with PDF attachments are processed automatically, and RFP entries are created.
+                        </p>
+                        <p className="text-sm text-blue-800 mt-2">
+                            <strong>PDFs are saved to:</strong> <code className="bg-blue-100 px-2 py-1 rounded">f:\eytech\data\uploads\</code>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default EmailInbox;

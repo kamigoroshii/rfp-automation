@@ -7,6 +7,8 @@ import {
   Upload,
   BarChart3,
   Package,
+  Shield,
+  Mail,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -16,8 +18,10 @@ const Sidebar = ({ isOpen, onToggle }) => {
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', description: 'Overview' },
     { path: '/rfps', icon: FileText, label: 'RFP List', description: 'All submissions' },
     { path: '/submit', icon: Upload, label: 'Submit RFP', description: 'New entry' },
+    { path: '/emails', icon: Mail, label: 'Email Inbox', description: 'Discovered RFPs' },
     { path: '/analytics', icon: BarChart3, label: 'Analytics', description: 'Insights' },
     { path: '/products', icon: Package, label: 'Products', description: 'Catalog' },
+    { path: '/auditor', icon: Shield, label: 'Auditor', description: 'Compliance' },
   ];
 
   return (
@@ -39,10 +43,9 @@ const Sidebar = ({ isOpen, onToggle }) => {
             to={item.path}
             end={item.path === '/'}
             className={({ isActive }) =>
-              `flex items-center ${isOpen ? 'space-x-3 px-3 py-2.5' : 'justify-center py-2'} rounded-md group transition-colors duration-100 ${
-                isActive
-                  ? 'bg-olive-100 text-olive-800 border-l-2 border-olive-500'
-                  : 'text-olive-700 hover:bg-olive-200'
+              `flex items-center ${isOpen ? 'space-x-3 px-3 py-2.5' : 'justify-center py-2'} rounded-md group transition-colors duration-100 ${isActive
+                ? 'bg-olive-100 text-olive-800 border-l-2 border-olive-500'
+                : 'text-olive-700 hover:bg-olive-200'
               }`
             }
           >

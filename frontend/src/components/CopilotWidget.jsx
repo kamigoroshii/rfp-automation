@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Send, Bot, Minimize2 } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, Minimize2, Upload, Paperclip } from 'lucide-react';
 
 const CopilotWidget = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -7,13 +7,16 @@ const CopilotWidget = () => {
         {
             id: 1,
             type: 'bot',
-            text: 'Hello! I am your RFP Copilot. I can help you analyze documents, compare specs, or answer questions about ongoing tenders. How can I assist you today?',
+            text: 'Hello! I am your RFP Copilot. I can help you analyze documents, compare specs, or answer questions about ongoing tenders. Upload a PDF to get started!',
             timestamp: new Date()
         }
     ]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const [uploadedFile, setUploadedFile] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
     const messagesEndRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
         scrollToBottom();
@@ -100,6 +103,79 @@ const CopilotWidget = () => {
         }
     };
 
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        if (file.type !== 'application/pdf') {
+            const errorMsg = {
+                id: Date.now(),
+                type: 'bot',
+                text: 'Please upload a PDF file only.',
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, errorMsg]);
+            return;
+        }
+
+        setIsUploading(true);
+        setUploadedFile(file);
+
+        // Add upload notification
+        const uploadMsg = {
+            id: Date.now(),
+            type: 'bot',
+            text: `📄 Uploading "${file.name}"... Please wait while I analyze the document.`,
+            timestamp: new Date()
+        };
+        setMessages(prev => [...prev, uploadMsg]);
+
+        try {
+            // Create form data
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('title', file.name.replace('.pdf', ''));
+            formData.append('source', `Copilot Upload: ${file.name}`);
+            formData.append('deadline', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()); // 30 days from now
+            formData.append('scope', 'Document uploaded via Copilot for analysis');
+            formData.append('testing_requirements', '');
+
+            // Upload to backend
+            const response = await fetch('/api/rfp/submit', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Upload failed');
+            }
+
+            const data = await response.json();
+
+            // Success message
+            const successMsg = {
+                id: Date.now() + 1,
+                type: 'bot',
+                text: `✅ Document "${file.name}" uploaded successfully! I can now answer questions about this document. What would you like to know?`,
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, successMsg]);
+
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            const errorMsg = {
+                id: Date.now() + 1,
+                type: 'bot',
+                text: `❌ Sorry, there was an error uploading the file. Please try again.`,
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, errorMsg]);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     return (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none">
             {/* Chat Window */}
@@ -170,12 +246,50 @@ const CopilotWidget = () => {
 
                 {/* Input Area */}
                 <div className="p-4 bg-white border-t border-gray-100">
+                    {/* Upload Button */}
+                    <div className="mb-3">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileUpload}
+                            accept=".pdf"
+                            className="hidden"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            className={`
+                                w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-dashed transition-all
+                                ${isUploading
+                                    ? 'border-gray-300 bg-gray-50 cursor-not-allowed'
+                                    : 'border-olive-300 bg-olive-50 hover:bg-olive-100 hover:border-olive-400 cursor-pointer'
+                                }
+                            `}
+                        >
+                            {isUploading ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-olive-600"></div>
+                                    <span className="text-sm text-olive-700">Uploading...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Upload size={16} className="text-olive-600" />
+                                    <span className="text-sm font-medium text-olive-700">
+                                        {uploadedFile ? `📄 ${uploadedFile.name}` : 'Upload PDF Document'}
+                                    </span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+
+                    {/* Message Input */}
                     <form onSubmit={handleSendMessage} className="relative flex items-center">
                         <input
                             type="text"
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
-                            placeholder="Ask about active RFPs..."
+                            placeholder="Ask about uploaded documents..."
                             className="w-full bg-gray-50 text-gray-800 text-sm rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:ring-2 focus:ring-olive-500/20 border border-gray-200 transition-all placeholder:text-gray-400"
                         />
                         <button

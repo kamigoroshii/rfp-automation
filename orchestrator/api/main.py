@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from orchestrator.config import settings
-from orchestrator.api.routes import rfp, analytics, products, copilot
+from orchestrator.api.routes import rfp, analytics, products, copilot, auditor
 
 # Configure logging
 logging.basicConfig(
@@ -40,6 +40,7 @@ app.include_router(rfp.router, prefix="/api/rfp", tags=["RFP"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(products.router, prefix="/api/products", tags=["Products"])
 app.include_router(copilot.router, prefix="/api/copilot", tags=["Copilot"])
+app.include_router(auditor.router, prefix="/api/auditor", tags=["Auditor"])
 
 # Background Task for Email Monitoring
 import asyncio

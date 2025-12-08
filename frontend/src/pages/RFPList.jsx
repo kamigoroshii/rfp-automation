@@ -126,11 +126,13 @@ const RFPList = () => {
                   </div>
                   <p className="text-text-light mt-2 line-clamp-2">{rfp.scope}</p>
                   <div className="flex flex-wrap gap-2 mt-3">
-                    {rfp.testing_requirements.slice(0, 3).map((req, idx) => (
-                      <span key={idx} className="px-2 py-1 bg-gray-100 text-text text-xs rounded">
-                        {req}
-                      </span>
-                    ))}
+                    {rfp.testing_requirements && rfp.testing_requirements.length > 0 &&
+                      rfp.testing_requirements.slice(0, 3).map((req, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-gray-100 text-text text-xs rounded">
+                          {req}
+                        </span>
+                      ))
+                    }
                   </div>
                 </div>
                 <div className="lg:text-right space-y-2 lg:min-w-[200px]">

@@ -13,6 +13,8 @@ import RFPDetail from './pages/RFPDetail';
 import SubmitRFP from './pages/SubmitRFP';
 import Analytics from './pages/Analytics';
 import Products from './pages/Products';
+import AuditorDashboard from './pages/AuditorDashboard';
+import EmailInbox from './pages/EmailInbox';
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
           <Route path="/submit" element={<SubmitRFP />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/products" element={<Products />} />
+          <Route path="/auditor" element={<AuditorDashboard />} />
+          <Route path="/emails" element={<EmailInbox />} />
         </Routes>
       </Layout>
       <ToastContainer
