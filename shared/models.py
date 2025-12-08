@@ -21,6 +21,11 @@ class RFPSummary:
     go_no_go_score: float = 0.0
     client_tier: str = "Standard"
     project_value: float = 0.0
+    attachments: List[str] = None
+    
+    def __post_init__(self):
+        if self.attachments is None:
+            self.attachments = []
     
     def to_json(self) -> str:
         """Convert to JSON string"""
@@ -41,6 +46,8 @@ class RFPSummary:
             data['client_tier'] = "Standard"
         if 'project_value' not in data:
             data['project_value'] = 0.0
+        if 'attachments' not in data:
+            data['attachments'] = []
         return cls(**data)
 
 

@@ -9,6 +9,12 @@ from typing import List, Dict, Optional, Any
 import uuid
 
 from shared.models import RFPSummary
+import imaplib
+import email
+import os
+import json
+from email.header import decode_header
+from orchestrator.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -73,27 +79,22 @@ class SalesAgent:
             return rfps
             
         except Exception as e:
+            import traceback
             logger.error(f"Error discovering RFPs from URL: {str(e)}")
             return []
 
     def check_emails_imap(self) -> List[RFPSummary]:
         """
-        Check configured IMAP account for new RFPs (Real-time integration)
-        Requires EMAIL_HOST, EMAIL_USER, EMAIL_PASSWORD env vars.
+        Check IMAP email for new RFPs
         """
-        import os
-        host = os.getenv("EMAIL_HOST")
-        user = os.getenv("EMAIL_USER")
-        password = os.getenv("EMAIL_PASSWORD")
-        
-        if not (host and user and password):
-            logger.info("IMAP credentials not found. Real-time email monitoring disabled.")
-            return []
-
         try:
-            import imaplib
-            import email
-            from email.header import decode_header
+            host = settings.EMAIL_HOST
+            user = settings.EMAIL_USER
+            password = settings.EMAIL_PASSWORD
+
+            if not host or not user or not password:
+                logger.warning("Email settings not configured. Skipping email check.")
+                return []
 
             logger.info(f"Connecting to IMAP server: {host}")
             mail = imaplib.IMAP4_SSL(host)
@@ -120,13 +121,49 @@ class SalesAgent:
                             
                             sender = msg.get("From")
                             
-                            # Get body
+                            # Get body and attachments
                             body = ""
+                            attachments = []
+                            
                             if msg.is_multipart():
                                 for part in msg.walk():
-                                    if part.get_content_type() == "text/plain":
-                                        body = part.get_payload(decode=True).decode()
-                                        break
+                                    content_type = part.get_content_type()
+                                    content_disposition = str(part.get("Content-Disposition"))
+                                    
+                                    if content_type == "text/plain" and "attachment" not in content_disposition:
+                                        try:
+                                            body = part.get_payload(decode=True).decode()
+                                        except:
+                                            pass
+                                    
+                                    elif "attachment" in content_disposition:
+                                        filename = part.get_filename()
+                                        if filename:
+                                            # Decode filename
+                                            header_filename = decode_header(filename)[0]
+                                            filename_bytes = header_filename[0]
+                                            encoding = header_filename[1]
+                                            if isinstance(filename_bytes, bytes):
+                                                filename = filename_bytes.decode(encoding if encoding else "utf-8")
+                                            else:
+                                                filename = filename_bytes
+                                            
+                                            # Save only PDFs or relevant docs
+                                            if filename.lower().endswith(('.pdf', '.doc', '.docx')):
+                                                save_dir = settings.UPLOAD_DIR
+                                                os.makedirs(save_dir, exist_ok=True)
+                                                
+                                                # Create unique filename
+                                                file_id = str(uuid.uuid4())[:8]
+                                                safe_filename = f"{file_id}_{filename}"
+                                                filepath = os.path.join(save_dir, safe_filename)
+                                                
+                                                with open(filepath, "wb") as f:
+                                                    f.write(part.get_payload(decode=True))
+                                                    
+                                                attachments.append(filepath)
+                                                logger.info(f"Downloaded attachment: {filepath}")
+                            
                             else:
                                 body = msg.get_payload(decode=True).decode()
                             
@@ -134,7 +171,8 @@ class SalesAgent:
                             email_content = {
                                 "subject": subject,
                                 "sender": sender,
-                                "body": body
+                                "body": body,
+                                "attachments": attachments
                             }
                             
                             rfp = self.ingest_email_rfp(email_content)
@@ -177,7 +215,8 @@ class SalesAgent:
                 discovered_at=datetime.now(),
                 status='new',
                 client_tier=self._determine_client_tier(email_content.get('sender')),
-                project_value=0.0  # Unknown initially
+                project_value=0.0,
+                attachments=email_content.get('attachments', [])
             )
             
             if self._evaluate_rfp(rfp):

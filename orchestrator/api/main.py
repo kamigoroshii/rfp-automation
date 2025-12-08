@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from orchestrator.config import settings
-from orchestrator.api.routes import rfp, analytics, products
+from orchestrator.api.routes import rfp, analytics, products, copilot
 
 # Configure logging
 logging.basicConfig(
@@ -35,9 +35,38 @@ app.add_middleware(
 )
 
 # Include routers
+# Include routers
 app.include_router(rfp.router, prefix="/api/rfp", tags=["RFP"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(products.router, prefix="/api/products", tags=["Products"])
+app.include_router(copilot.router, prefix="/api/copilot", tags=["Copilot"])
+
+# Background Task for Email Monitoring
+import asyncio
+from agents.sales.agent import SalesAgent
+
+async def check_emails_periodically():
+    """Background task to check emails every hour"""
+    agent = SalesAgent()
+    while True:
+        try:
+            logger.info("Starting hourly email check...")
+            rfps = agent.check_emails_imap()
+            if rfps:
+                logger.info(f"Found {len(rfps)} new RFPs from email.")
+                # Here you might trigger further processing if needed
+            else:
+                logger.info("No new RFPs found in email.")
+        except Exception as e:
+            logger.error(f"Error in email monitoring task: {e}")
+        
+        # Wait for 1 hour (3600 seconds)
+        await asyncio.sleep(3600)
+
+@app.on_event("startup")
+async def startup_event():
+    """Start background tasks on application startup"""
+    asyncio.create_task(check_emails_periodically())
 
 
 @app.get("/")

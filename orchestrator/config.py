@@ -37,6 +37,7 @@ class Settings:
     
     # AI Settings
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
     HF_TOKEN = os.getenv("HF_TOKEN", "")
     
     # Application Settings
@@ -47,6 +48,12 @@ class Settings:
     # File Upload Settings
     UPLOAD_DIR = os.getenv("UPLOAD_DIR", "data/uploads")
     MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", 10485760))  # 10MB
+
+    # Email Settings
+    EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+    EMAIL_PORT = int(os.getenv("EMAIL_PORT", 993))
+    EMAIL_USER = os.getenv("EMAIL_USER", "")
+    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
 
 
 settings = Settings()

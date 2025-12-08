@@ -3,9 +3,6 @@ Database connection manager with connection pooling
 """
 import os
 import time
-import psycopg2
-from psycopg2 import pool
-from psycopg2.extras import RealDictCursor
 from typing import Optional, Any, List, Tuple
 from contextlib import contextmanager
 from dotenv import load_dotenv
@@ -14,9 +11,22 @@ import logging
 load_dotenv()
 logger = logging.getLogger(__name__)
 
+try:
+    import psycopg2
+    from psycopg2 import pool
+    from psycopg2.extras import RealDictCursor
+    DB_DRIVER_AVAILABLE = True
+except ImportError:
+    logger.warning("psycopg2 driver not found. Database features will be disabled.")
+    psycopg2 = None
+    DB_DRIVER_AVAILABLE = False
+
 
 def get_db_connection():
     """Get simple database connection (for backward compatibility)"""
+    if not DB_DRIVER_AVAILABLE:
+        raise ImportError("psycopg2 driver not available")
+        
     try:
         conn = psycopg2.connect(
             host=os.getenv("DB_HOST", "localhost"),
@@ -35,8 +45,11 @@ class DatabaseManager:
     """PostgreSQL database connection manager"""
     
     def __init__(self):
-        self.connection_pool: Optional[pool.SimpleConnectionPool] = None
-        self._initialize_pool()
+        self.connection_pool = None
+        if DB_DRIVER_AVAILABLE:
+            self._initialize_pool()
+        else:
+            logger.warning("DatabaseManager initialized in simplified mode (no driver)")
     
     def _initialize_pool(self):
         """Initialize connection pool"""
@@ -58,6 +71,9 @@ class DatabaseManager:
     @contextmanager
     def get_connection(self):
         """Get connection from pool with context manager"""
+        if not self.connection_pool:
+            raise RuntimeError("Database connection pool not initialized")
+            
         conn = None
         try:
             conn = self.connection_pool.getconn()
@@ -147,4 +163,9 @@ def get_db_manager():
         except Exception as e:
             logger.error(f"Could not initialize DatabaseManager: {e}")
             return None
+            
+    # If pool is not initialized (e.g. no driver), return None to force Mock usage
+    if _db_manager and not _db_manager.connection_pool:
+        return None
+        
     return _db_manager

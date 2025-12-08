@@ -3,11 +3,13 @@ import Header from './Header';
 import Sidebar from './Sidebar';
 
 
+import CopilotWidget from '../CopilotWidget';
+
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-neutral-50 relative">
       <Header toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
       <div className="flex">
         <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen((open) => !open)} />
@@ -17,6 +19,7 @@ const Layout = ({ children }) => {
           </div>
         </main>
       </div>
+      <CopilotWidget />
     </div>
   );
 };
