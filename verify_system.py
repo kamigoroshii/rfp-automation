@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 
 # Configuration
-BACKEND_URL = "http://localhost:8000"
+BACKEND_URL = "http://localhost:8003"
 FRONTEND_URL = "http://localhost:5173"
 
 def print_header(text):

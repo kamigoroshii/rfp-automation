@@ -233,12 +233,23 @@ const EmailInbox = () => {
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
-                                                                <Eye size={18} className="text-text-light" />
-                                                            </button>
-                                                            <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
-                                                                <Download size={18} className="text-text-light" />
-                                                            </button>
+                                                            <a
+                                                                href={`http://localhost:8003/uploads/${attachment.filename}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-text-light hover:text-primary"
+                                                                title="View"
+                                                            >
+                                                                <Eye size={18} />
+                                                            </a>
+                                                            <a
+                                                                href={`http://localhost:8003/uploads/${attachment.filename}`}
+                                                                download
+                                                                className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-text-light hover:text-primary"
+                                                                title="Download"
+                                                            >
+                                                                <Download size={18} />
+                                                            </a>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -279,7 +290,10 @@ const EmailInbox = () => {
                             Emails with PDF attachments are processed automatically, and RFP entries are created.
                         </p>
                         <p className="text-sm text-blue-800 mt-2">
-                            <strong>PDFs are saved to:</strong> <code className="bg-blue-100 px-2 py-1 rounded">f:\eytech\data\uploads\</code>
+                            <strong>PDFs are saved to:</strong> <code className="bg-blue-100 px-2 py-1 rounded">data/uploads/</code>
+                        </p>
+                        <p className="text-sm text-blue-800 mt-2 font-medium">
+                            Last Checked: Just now
                         </p>
                     </div>
                 </div>

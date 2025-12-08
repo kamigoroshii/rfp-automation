@@ -18,7 +18,7 @@ const Dashboard = () => {
         analyticsAPI.getDashboardData(),
         rfpAPI.getRFPs()
       ]);
-      
+
       setStats(analyticsRes.data.overview);
       setRecentRFPs(rfpsRes.data.rfps.slice(0, 5));
     } catch (error) {
@@ -84,7 +84,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <MetricCard
           title="Avg Processing Time"
-          value={`${stats?.avg_processing_time || 0}`}
+          value={`${(stats?.avg_processing_time || 0).toFixed(2)}`}
           unit="minutes"
           description="Time to process RFP"
           status="good"
@@ -152,7 +152,7 @@ const Dashboard = () => {
 const StatCard = ({ icon: Icon, title, value, trend, trendLabel }) => {
   const isPositive = trend > 0;
   const TrendIcon = isPositive ? ArrowUpRight : ArrowDownRight;
-  
+
   return (
     <div className="card p-5">
       <div className="flex items-start justify-between mb-3">
@@ -167,7 +167,7 @@ const StatCard = ({ icon: Icon, title, value, trend, trendLabel }) => {
         )}
       </div>
       <div>
-  <p className="text-2xl font-semibold text-olive-800" style={{color: '#555841', fontWeight: 600, fontSize: '2rem', lineHeight: '2.5rem', margin: 0, letterSpacing: '-0.01em', textShadow: 'none', background: 'none', WebkitTextFillColor: '#555841 !important'}}> {value} </p>
+        <p className="text-2xl font-semibold text-olive-800" style={{ color: '#555841', fontWeight: 600, fontSize: '2rem', lineHeight: '2.5rem', margin: 0, letterSpacing: '-0.01em', textShadow: 'none', background: 'none', WebkitTextFillColor: '#555841 !important' }}> {value} </p>
         <p className="text-xs text-neutral-600 mt-1">{title}</p>
         {trendLabel && (
           <p className="text-xs text-neutral-500 mt-0.5">{trendLabel}</p>

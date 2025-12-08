@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { rfpAPI } from '../services/api';
+import { rfpAPI, emailAPI } from '../services/api';
 import { toast } from 'react-toastify';
-import { Upload, Link as LinkIcon, FileText, CheckCircle, Loader } from 'lucide-react';
+import { Upload, Link as LinkIcon, FileText, CheckCircle, Loader, Mail, Copy, Sparkles, Search } from 'lucide-react';
 import { extractSpecifications, getSpecificationSummary, validateSpecifications } from '../utils/specExtractor';
 import { matchProducts, getRecommendedProduct } from '../utils/productMatcher';
 import { calculatePricing, formatCurrency } from '../utils/pricingCalculator';
@@ -10,6 +10,16 @@ import { calculatePricing, formatCurrency } from '../utils/pricingCalculator';
 const SubmitRFP = () => {
   const navigate = useNavigate();
   const [submissionType, setSubmissionType] = useState('url');
+
+  // Quick Start mode: 'fresh', 'email', or 'clone'
+  const [quickStartMode, setQuickStartMode] = useState('fresh');
+  const [emails, setEmails] = useState([]);
+  const [existingRFPs, setExistingRFPs] = useState([]);
+  const [showEmailDropdown, setShowEmailDropdown] = useState(false);
+  const [showRFPDropdown, setShowRFPDropdown] = useState(false);
+  const [emailSearchQuery, setEmailSearchQuery] = useState('');
+  const [rfpSearchQuery, setRFPSearchQuery] = useState('');
+
   const [formData, setFormData] = useState({
     title: '',
     source: '',
@@ -21,6 +31,74 @@ const SubmitRFP = () => {
   const [submitting, setSubmitting] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [processedData, setProcessedData] = useState(null);
+
+  // Load pending emails and existing RFPs when component mounts or mode changes
+  useEffect(() => {
+    const loadQuickStartData = async () => {
+      try {
+        if (quickStartMode === 'email') {
+          const response = await emailAPI.getEmails('pending');
+          setEmails(response.data.emails || []);
+        } else if (quickStartMode === 'clone') {
+          const response = await rfpAPI.getRFPs({ limit: 50 });
+          setExistingRFPs(response.data.rfps || []);
+        }
+      } catch (error) {
+        console.error('Error loading Quick Start data:', error);
+      }
+    };
+
+    loadQuickStartData();
+  }, [quickStartMode]);
+
+  // Parse deadline from email body (simple keyword search)
+  const parseDeadlineFromText = (text) => {
+    const datePattern = /(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})|(\d{4}[-/]\d{1,2}[-/]\d{1,2})/g;
+    const matches = text.match(datePattern);
+    if (matches && matches.length > 0) {
+      try {
+        const parsedDate = new Date(matches[0]);
+        if (!isNaN(parsedDate.getTime())) {
+          return parsedDate.toISOString().slice(0, 16);
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 30);
+    return defaultDate.toISOString().slice(0, 16);
+  };
+
+  // Handler for email selection
+  const handleEmailSelect = (email) => {
+    setFormData({
+      title: email.subject || 'RFP from Email',
+      source: email.sender || 'Email',
+      deadline: parseDeadlineFromText(email.body || ''),
+      scope: email.body || email.subject || '',
+      testing_requirements: ''
+    });
+    setEmailSearchQuery(email.subject);
+    setShowEmailDropdown(false);
+    toast.success('Email details imported!');
+  };
+
+  // Handler for RFP cloning
+  const handleRFPClone = (rfp) => {
+    setFormData({
+      title: `Copy of ${rfp.title}`,
+      source: rfp.source || 'Cloned RFP',
+      deadline: rfp.deadline ? new Date(rfp.deadline).toISOString().slice(0, 16) : '',
+      scope: rfp.scope || '',
+      testing_requirements: Array.isArray(rfp.testing_requirements)
+        ? rfp.testing_requirements.join(', ')
+        : rfp.testing_requirements || ''
+    });
+    setRFPSearchQuery(rfp.title);
+    setShowRFPDropdown(false);
+    toast.success('RFP details cloned!');
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -64,7 +142,7 @@ const SubmitRFP = () => {
       // Step 1: Extract specifications from scope
       toast.info('Extracting specifications...', { autoClose: 2000 });
       const specifications = extractSpecifications(formData.scope + ' ' + formData.title);
-      
+
       if (specifications.length === 0) {
         toast.warning('No specifications detected. Please provide more details in the scope.');
         setSubmitting(false);
@@ -80,11 +158,11 @@ const SubmitRFP = () => {
 
       // Get specification summary
       const specSummary = getSpecificationSummary(specifications);
-      
+
       // Step 2: Match products
       toast.info('Matching products...', { autoClose: 2000 });
       const matches = matchProducts(specifications);
-      
+
       if (matches.length === 0) {
         toast.warning('No matching products found. Try adjusting specifications.');
         setSubmitting(false);
@@ -94,11 +172,11 @@ const SubmitRFP = () => {
 
       // Step 3: Calculate pricing
       toast.info('Calculating pricing...', { autoClose: 2000 });
-      
+
       // Extract quantity from specifications or use default
       const quantitySpec = specifications.find(s => s.type === 'quantity');
       const quantity = quantitySpec ? parseInt(quantitySpec.value) : 1000;
-      
+
       const pricingList = calculatePricing(
         matches,
         quantity,
@@ -122,7 +200,7 @@ const SubmitRFP = () => {
         recommendedPricing,
         quantity
       };
-      
+
       setProcessedData(processed);
 
       // Prepare RFP data with processing results
@@ -142,10 +220,10 @@ const SubmitRFP = () => {
       };
 
       const response = await rfpAPI.submitRFP(rfpData);
-      
+
       setProcessing(false);
       toast.success('RFP processed successfully!', { autoClose: 3000 });
-      
+
       // Show results for 3 seconds before redirecting
       setTimeout(() => {
         navigate(`/rfp/${response.data.rfp_id}`);
@@ -174,17 +252,161 @@ const SubmitRFP = () => {
         </button>
       </div>
 
+      {/* Quick Start Section */}
+      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg shadow-md p-6 border border-purple-200">
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <button
+            type="button"
+            onClick={() => setQuickStartMode('email')}
+            className={`p-4 rounded-lg border-2 transition-all ${quickStartMode === 'email'
+              ? 'border-primary-600 bg-primary-600 text-white shadow-lg'
+              : 'border-gray-300 bg-white text-text hover:border-primary-400'
+              }`}
+          >
+            <Mail size={24} className="mx-auto mb-2" />
+            <p className="font-semibold">Import from Email</p>
+            <p className={`text-xs mt-1 ${quickStartMode === 'email' ? 'text-white opacity-90' : 'text-text-light'}`}>
+              Auto-fill from inbox
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setQuickStartMode('clone')}
+            className={`p-4 rounded-lg border-2 transition-all ${quickStartMode === 'clone'
+              ? 'border-primary-600 bg-primary-600 text-white shadow-lg'
+              : 'border-gray-300 bg-white text-text hover:border-primary-400'
+              }`}
+          >
+            <Copy size={24} className="mx-auto mb-2" />
+            <p className="font-semibold">Clone Existing RFP</p>
+            <p className={`text-xs mt-1 ${quickStartMode === 'clone' ? 'text-white opacity-90' : 'text-text-light'}`}>
+              Use as template
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setQuickStartMode('fresh')}
+            className={`p-4 rounded-lg border-2 transition-all ${quickStartMode === 'fresh'
+              ? 'border-primary-600 bg-primary-600 text-white shadow-lg'
+              : 'border-gray-300 bg-white text-text hover:border-primary-400'
+              }`}
+          >
+            <FileText size={24} className="mx-auto mb-2" />
+            <p className="font-semibold">Start Fresh</p>
+            <p className={`text-xs mt-1 ${quickStartMode === 'fresh' ? 'text-white opacity-90' : 'text-text-light'}`}>
+              Manual entry
+            </p>
+          </button>
+        </div>
+
+        {/* Email Search Dropdown */}
+        {quickStartMode === 'email' && (
+          <div className="relative">
+            <label className="block text-sm font-medium text-text mb-2">
+              Search Pending Emails
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-light" size={18} />
+              <input
+                type="text"
+                value={emailSearchQuery}
+                onChange={(e) => {
+                  setEmailSearchQuery(e.target.value);
+                  setShowEmailDropdown(true);
+                }}
+                onFocus={() => setShowEmailDropdown(true)}
+                className="w-full pl-10 pr-4 py-3 border-2 border-primary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600"
+                placeholder="Type to search emails..."
+              />
+            </div>
+
+            {showEmailDropdown && emails.length > 0 && (
+              <div className="absolute z-10 w-full mt-2 bg-white border border-gray-300 rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                {emails
+                  .filter(email =>
+                    email.subject?.toLowerCase().includes(emailSearchQuery.toLowerCase()) ||
+                    email.sender?.toLowerCase().includes(emailSearchQuery.toLowerCase())
+                  )
+                  .map((email) => (
+                    <button
+                      key={email.email_id}
+                      type="button"
+                      onClick={() => handleEmailSelect(email)}
+                      className="w-full text-left px-4 py-3 hover:bg-primary-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                    >
+                      <p className="font-semibold text-text">{email.subject}</p>
+                      <p className="text-sm text-text-light">From: {email.sender}</p>
+                      <p className="text-xs text-text-light mt-1">
+                        {new Date(email.received_at).toLocaleDateString()}
+                      </p>
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* RFP Clone Search Dropdown */}
+        {quickStartMode === 'clone' && (
+          <div className="relative">
+            <label className="block text-sm font-medium text-text mb-2">
+              Search Existing RFPs
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-light" size={18} />
+              <input
+                type="text"
+                value={rfpSearchQuery}
+                onChange={(e) => {
+                  setRFPSearchQuery(e.target.value);
+                  setShowRFPDropdown(true);
+                }}
+                onFocus={() => setShowRFPDropdown(true)}
+                className="w-full pl-10 pr-4 py-3 border-2 border-primary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600"
+                placeholder="Type to search RFPs..."
+              />
+            </div>
+
+            {showRFPDropdown && existingRFPs.length > 0 && (
+              <div className="absolute z-10 w-full mt-2 bg-white border border-gray-300 rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                {existingRFPs
+                  .filter(rfp =>
+                    rfp.title?.toLowerCase().includes(rfpSearchQuery.toLowerCase()) ||
+                    rfp.rfp_id?.toLowerCase().includes(rfpSearchQuery.toLowerCase())
+                  )
+                  .map((rfp) => (
+                    <button
+                      key={rfp.rfp_id}
+                      type="button"
+                      onClick={() => handleRFPClone(rfp)}
+                      className="w-full text-left px-4 py-3 hover:bg-primary-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                    >
+                      <p className="font-semibold text-text">{rfp.title}</p>
+                      <p className="text-sm text-text-light">{rfp.rfp_id}</p>
+                      <p className="text-xs text-text-light mt-1">
+                        Status: {rfp.status} | {new Date(rfp.discovered_at).toLocaleDateString()}
+                      </p>
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="bg-white rounded-lg shadow-md p-6">
         {/* Submission Type Selector */}
         <div className="flex gap-4 mb-6">
           <button
             type="button"
             onClick={() => setSubmissionType('url')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors ${
-              submissionType === 'url'
-                ? 'border-primary bg-primary text-white'
-                : 'border-gray-300 text-text hover:border-primary'
-            }`}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors ${submissionType === 'url'
+              ? 'border-primary bg-primary text-white'
+              : 'border-gray-300 text-text hover:border-primary'
+              }`}
           >
             <LinkIcon size={20} />
             <span>From URL</span>
@@ -192,11 +414,10 @@ const SubmitRFP = () => {
           <button
             type="button"
             onClick={() => setSubmissionType('file')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors ${
-              submissionType === 'file'
-                ? 'border-primary bg-primary text-white'
-                : 'border-gray-300 text-text hover:border-primary'
-            }`}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors ${submissionType === 'file'
+              ? 'border-primary bg-primary text-white'
+              : 'border-gray-300 text-text hover:border-primary'
+              }`}
           >
             <Upload size={20} />
             <span>Upload PDF</span>
@@ -329,7 +550,7 @@ const SubmitRFP = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
             >
               {submitting ? (
                 <span className="flex items-center justify-center gap-2">
@@ -407,11 +628,10 @@ const SubmitRFP = () => {
                       <h4 className="font-semibold text-text">{match.name}</h4>
                       <p className="text-sm text-text-light">{match.sku}</p>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      match.match_score >= 0.9 ? 'bg-success/20 text-success' :
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${match.match_score >= 0.9 ? 'bg-success/20 text-success' :
                       match.match_score >= 0.7 ? 'bg-warning/20 text-warning' :
-                      'bg-gray-200 text-text'
-                    }`}>
+                        'bg-gray-200 text-text'
+                      }`}>
                       {(match.match_score * 100).toFixed(0)}% Match
                     </span>
                   </div>
@@ -433,7 +653,7 @@ const SubmitRFP = () => {
               <CheckCircle className="text-success" size={24} />
               <h3 className="text-xl font-bold text-text">Pricing Calculated</h3>
             </div>
-            
+
             {/* Recommended Option */}
             {processedData.recommendedPricing && (
               <div className="p-4 bg-primary/10 border-2 border-primary rounded-lg mb-4">

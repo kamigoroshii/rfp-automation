@@ -125,7 +125,13 @@ const RFPList = () => {
                     )}
                   </div>
                   <p className="text-text-light mt-2 line-clamp-2">{rfp.scope}</p>
-                  <div className="flex flex-wrap gap-2 mt-3">
+                  <div className="flex flex-wrap gap-2 mt-3 items-center">
+                    {rfp.attachments && rfp.attachments.length > 0 && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs border border-purple-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                        <span className="font-medium">{rfp.attachments.length} Attachment{rfp.attachments.length > 1 ? 's' : ''}</span>
+                      </div>
+                    )}
                     {rfp.testing_requirements && rfp.testing_requirements.length > 0 &&
                       rfp.testing_requirements.slice(0, 3).map((req, idx) => (
                         <span key={idx} className="px-2 py-1 bg-gray-100 text-text text-xs rounded">

@@ -31,8 +31,12 @@ class SalesAgent:
         try:
             from shared.cache.redis_manager import RedisManager
             self.redis = RedisManager()
+            if not self.redis.connected:
+                 logger.warning("RedisManager initialized but not connected.")
         except ImportError:
-            logger.warning("RedisManager not found. Redis features disabled.")
+            logger.warning("RedisManager import failed. Redis features disabled.")
+        except Exception as e:
+            logger.warning(f"Redis initialization failed: {e}")
             
         logger.info(f"{self.name} v{self.version} initialized")
     
@@ -109,82 +113,100 @@ class SalesAgent:
             rfps = []
             if status == "OK":
                 email_ids = messages[0].split()
-                for e_id in email_ids:
-                    # Fetch email body
-                    res, msg_data = mail.fetch(e_id, "(RFC822)")
-                    for response_part in msg_data:
-                        if isinstance(response_part, tuple):
-                            msg = email.message_from_bytes(response_part[1])
-                            
-                            # Decode subject
-                            subject, encoding = decode_header(msg["Subject"])[0]
-                            if isinstance(subject, bytes):
-                                subject = subject.decode(encoding if encoding else "utf-8")
-                            
-                            sender = msg.get("From")
-                            
-                            # Get body and attachments
-                            body = ""
-                            attachments = []
-                            
-                            if msg.is_multipart():
-                                for part in msg.walk():
-                                    content_type = part.get_content_type()
-                                    content_disposition = str(part.get("Content-Disposition"))
-                                    
-                                    if content_type == "text/plain" and "attachment" not in content_disposition:
-                                        try:
-                                            body = part.get_payload(decode=True).decode()
-                                        except:
-                                            pass
-                                    
-                                    elif "attachment" in content_disposition:
-                                        filename = part.get_filename()
-                                        if filename:
-                                            # Decode filename
-                                            header_filename = decode_header(filename)[0]
-                                            filename_bytes = header_filename[0]
-                                            encoding = header_filename[1]
-                                            if isinstance(filename_bytes, bytes):
-                                                filename = filename_bytes.decode(encoding if encoding else "utf-8")
-                                            else:
-                                                filename = filename_bytes
-                                            
-                                            # Save only PDFs or relevant docs
-                                            if filename.lower().endswith(('.pdf', '.doc', '.docx')):
-                                                save_dir = settings.UPLOAD_DIR
-                                                os.makedirs(save_dir, exist_ok=True)
+                # Process latest emails first
+                for e_id in reversed(email_ids):
+                    try:
+                        # Fetch email body
+                        res, msg_data = mail.fetch(e_id, "(RFC822)")
+                        for response_part in msg_data:
+                            if isinstance(response_part, tuple):
+                                msg = email.message_from_bytes(response_part[1])
+                                
+                                # Decode subject
+                                subject_header = msg["Subject"]
+                                if subject_header:
+                                    subject, encoding = decode_header(subject_header)[0]
+                                    if isinstance(subject, bytes):
+                                        subject = subject.decode(encoding if encoding else "utf-8")
+                                else:
+                                    subject = "(No Subject)"
+                                
+                                sender = msg.get("From", "Unknown")
+                                
+                                # Get body and attachments
+                                body = ""
+                                attachments = []
+                                
+                                if msg.is_multipart():
+                                    for part in msg.walk():
+                                        content_type = part.get_content_type()
+                                        content_disposition = str(part.get("Content-Disposition"))
+                                        
+                                        if content_type == "text/plain" and "attachment" not in content_disposition:
+                                            try:
+                                                part_payload = part.get_payload(decode=True)
+                                                if part_payload:
+                                                    body = part_payload.decode(errors='ignore')
+                                            except:
+                                                pass
+                                        
+                                        elif "attachment" in content_disposition:
+                                            filename = part.get_filename()
+                                            if filename:
+                                                # Decode filename
+                                                header_filename = decode_header(filename)[0]
+                                                filename_bytes = header_filename[0]
+                                                encoding = header_filename[1]
+                                                if isinstance(filename_bytes, bytes):
+                                                    filename = filename_bytes.decode(encoding if encoding else "utf-8")
+                                                else:
+                                                    filename = filename_bytes
                                                 
-                                                # Create unique filename
-                                                file_id = str(uuid.uuid4())[:8]
-                                                safe_filename = f"{file_id}_{filename}"
-                                                filepath = os.path.join(save_dir, safe_filename)
-                                                
-                                                with open(filepath, "wb") as f:
-                                                    f.write(part.get_payload(decode=True))
+                                                # Save only PDFs or relevant docs
+                                                if filename.lower().endswith(('.pdf', '.doc', '.docx')):
+                                                    save_dir = settings.UPLOAD_DIR
+                                                    os.makedirs(save_dir, exist_ok=True)
                                                     
-                                                attachments.append(filepath)
-                                                logger.info(f"Downloaded attachment: {filepath}")
-                            
-                            else:
-                                body = msg.get_payload(decode=True).decode()
-                            
-                            # Ingest
-                            email_content = {
-                                "subject": subject,
-                                "sender": sender,
-                                "body": body,
-                                "attachments": attachments
-                            }
-                            
-                            # Save email to database
-                            email_id = self._save_email_to_db(email_content)
-                            
-                            rfp = self.ingest_email_rfp(email_content, email_id)
-                            if rfp:
-                                rfps.append(rfp)
-                                # Update email status to processed
-                                self._update_email_status(email_id, 'processed', rfp.rfp_id)
+                                                    # Create unique filename
+                                                    file_id = str(uuid.uuid4())[:8]
+                                                    safe_filename = f"{file_id}_{filename}"
+                                                    filepath = os.path.join(save_dir, safe_filename)
+                                                    
+                                                    with open(filepath, "wb") as f:
+                                                        f.write(part.get_payload(decode=True))
+                                                        
+                                                    attachments.append({
+                                                        "filename": filename,
+                                                        "path": filepath,
+                                                        "size": os.path.getsize(filepath)
+                                                    })
+                                                    logger.info(f"Downloaded attachment: {filepath}")
+                                
+                                else:
+                                    payload = msg.get_payload(decode=True)
+                                    if payload:
+                                        body = payload.decode(errors='ignore')
+                                
+                                # Ingest
+                                email_content = {
+                                    "subject": subject,
+                                    "sender": sender,
+                                    "body": body,
+                                    "attachments": attachments
+                                }
+                                
+                                # Save email to database ALWAYS (for visibility in Inbox)
+                                email_id = self._save_email_to_db(email_content)
+                                
+                                # Try to create RFP if valid
+                                rfp = self.ingest_email_rfp(email_content, email_id)
+                                if rfp:
+                                    rfps.append(rfp)
+                                    # Update email status to processed
+                                    self._update_email_status(email_id, 'processed', rfp.rfp_id)
+                    except Exception as inner_e:
+                        logger.error(f"Error processing individual email {e_id}: {inner_e}")
+                        continue
                                 
             mail.close()
             mail.logout()

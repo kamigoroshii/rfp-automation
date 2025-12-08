@@ -9,7 +9,7 @@ import logging
 import os
 
 from orchestrator.config import settings
-from orchestrator.api.routes import rfp, analytics, products, copilot, auditor, emails
+from orchestrator.api.routes import rfp, analytics, products, copilot, auditor, emails, notifications
 
 # Configure logging
 logging.basicConfig(
@@ -44,6 +44,7 @@ app.include_router(products.router, prefix="/api/products", tags=["Products"])
 app.include_router(copilot.router, prefix="/api/copilot", tags=["Copilot"])
 app.include_router(auditor.router, prefix="/api/auditor", tags=["Auditor"])
 app.include_router(emails.router, prefix="/api/emails", tags=["Emails"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
 
 # Serve uploaded files (PDFs, documents)
 uploads_dir = os.path.join(os.getcwd(), "data", "uploads")
@@ -57,13 +58,38 @@ from agents.sales.agent import SalesAgent
 async def check_emails_periodically():
     """Background task to check emails every hour"""
     agent = SalesAgent()
+    # Import services here to avoid circular dependencies if any
+    from orchestrator.services.rfp_service import RFPService
+    from orchestrator.services.notification_service import NotificationService
+    
+    rfp_service = RFPService()
+    notification_service = NotificationService()
+    
     while True:
         try:
             logger.info("Starting hourly email check...")
+            # Run blocking code in thread pool if needed, but for now direct call
             rfps = agent.check_emails_imap()
+            
             if rfps:
                 logger.info(f"Found {len(rfps)} new RFPs from email.")
-                # Here you might trigger further processing if needed
+                for rfp in rfps:
+                    # Save RFP to DB
+                    await rfp_service.create_rfp(rfp)
+                    
+                    # Check for High Value Alert (> $1M)
+                    # We need to simulate value estimation if not present, 
+                    # but check_emails_imap sets project_value if found
+                    await notification_service.notify_high_value_rfp({
+                        'rfp_id': rfp.rfp_id,
+                        'title': rfp.title,
+                        'source': rfp.source,
+                        'total_estimate': rfp.project_value, # from RFPSummary
+                        'deadline': rfp.deadline
+                    })
+                    
+                    # Trigger Processing
+                    await rfp_service.process_rfp(rfp.rfp_id)
             else:
                 logger.info("No new RFPs found in email.")
         except Exception as e:

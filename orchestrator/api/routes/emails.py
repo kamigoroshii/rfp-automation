@@ -20,7 +20,7 @@ class Email(BaseModel):
     sender: str
     received_at: datetime
     body: Optional[str] = None
-    attachments: List[str] = []
+    attachments: List[Any] = []
     rfp_id: Optional[str] = None
     status: str
     processed_at: Optional[datetime] = None
@@ -91,6 +91,9 @@ async def get_emails(
                     attachments = json.loads(attachments)
                 except:
                     attachments = []
+            elif not isinstance(attachments, list):
+                # Should be list if parsed by driver, otherwise fallback
+                attachments = []
             
             emails.append(Email(
                 email_id=row[0],
@@ -190,7 +193,7 @@ async def get_email_stats():
         
         # Total attachments
         cursor.execute("""
-            SELECT COALESCE(SUM(jsonb_array_length(attachments)), 0)
+            SELECT COALESCE(SUM(jsonb_array_length(CASE WHEN jsonb_typeof(attachments) = 'array' THEN attachments ELSE '[]'::jsonb END)), 0)
             FROM emails
             WHERE attachments IS NOT NULL
         """)

@@ -100,7 +100,30 @@ export const rfpAPI = {
 
       return { data: newRFP };
     }
-    return api.post('/rfp/submit', rfpData);
+
+    // Create FormData for backend API (expects multipart/form-data)
+    const formData = new FormData();
+    formData.append('title', rfpData.title);
+    formData.append('source', rfpData.source);
+    formData.append('deadline', rfpData.deadline);
+    formData.append('scope', rfpData.scope);
+
+    // Convert testing_requirements array to comma-separated string
+    const testingReqs = Array.isArray(rfpData.testing_requirements)
+      ? rfpData.testing_requirements.join(', ')
+      : rfpData.testing_requirements || '';
+    formData.append('testing_requirements', testingReqs);
+
+    // Add file if present
+    if (rfpData.file) {
+      formData.append('file', rfpData.file);
+    }
+
+    return api.post('/rfp/submit', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
   },
 
   // Submit feedback for RFP
