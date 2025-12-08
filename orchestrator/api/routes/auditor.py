@@ -145,6 +145,84 @@ async def complete_audit(request: AuditRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/reports", response_model=Dict[str, Any])
+async def get_audit_reports(limit: int = 50, offset: int = 0):
+    """
+    Get list of audit reports
+    """
+    try:
+        from shared.database.connection import get_db_connection
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get reports
+        cursor.execute("""
+            SELECT 
+                a.audit_id, a.rfp_id, a.audit_timestamp,
+                a.overall_recommendation, a.compliance_score,
+                a.critical_issues_count, a.summary,
+                a.rfp_validation, a.match_validation, a.pricing_validation,
+                r.title
+            FROM audit_reports a
+            LEFT JOIN rfps r ON a.rfp_id = r.rfp_id
+            ORDER BY a.audit_timestamp DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+        
+        rows = cursor.fetchall()
+        
+        # Get total count
+        cursor.execute("SELECT COUNT(*) FROM audit_reports")
+        total = cursor.fetchone()[0]
+        
+        # Get stats
+        cursor.execute("""
+            SELECT 
+                COUNT(*) FILTER (WHERE overall_recommendation = 'APPROVE') as approved,
+                COUNT(*) FILTER (WHERE overall_recommendation = 'REVIEW') as review,
+                COUNT(*) FILTER (WHERE overall_recommendation = 'REJECT') as rejected,
+                AVG(compliance_score) as avg_compliance
+            FROM audit_reports
+        """)
+        stats = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        # Format reports
+        reports = []
+        for row in rows:
+            reports.append({
+                "audit_id": row[0],
+                "rfp_id": row[1],
+                "audit_timestamp": row[2].isoformat() if row[2] else None,
+                "overall_recommendation": row[3],
+                "compliance_score": float(row[4]) if row[4] else 0,
+                "critical_issues_count": row[5],
+                "summary": row[6],
+                "rfp_validation": row[7],
+                "match_validation": row[8],
+                "pricing_validation": row[9],
+                "rfp_title": row[10]
+            })
+        
+        return {
+            "reports": reports,
+            "total": total,
+            "stats": {
+                "approved": stats[0] or 0,
+                "review": stats[1] or 0,
+                "rejected": stats[2] or 0,
+                "avg_compliance_score": float(stats[3]) if stats[3] else 0
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching audit reports: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""

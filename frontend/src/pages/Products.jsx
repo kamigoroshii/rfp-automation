@@ -96,7 +96,7 @@ const Products = () => {
 
               {/* Specifications */}
               <div className="space-y-2 mb-4">
-                {Object.entries(product.specifications).slice(0, 4).map(([key, value]) => (
+                {product.specifications && Object.entries(product.specifications).slice(0, 4).map(([key, value]) => (
                   <div key={key} className="flex justify-between text-sm">
                     <span className="text-text-light">
                       {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:
@@ -112,25 +112,26 @@ const Products = () => {
                   <p className="text-sm text-text-light">Unit Price</p>
                   <p className="text-xl font-bold text-primary">₹{product.unit_price}</p>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  product.stock_status === 'In Stock' 
-                    ? 'bg-success/20 text-success' 
-                    : 'bg-error/20 text-error'
-                }`}>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${product.stock_status === 'In Stock'
+                  ? 'bg-success/20 text-success'
+                  : 'bg-error/20 text-error'
+                  }`}>
                   {product.stock_status}
                 </span>
               </div>
 
               {/* Datasheet Link */}
-              <a
-                href={product.datasheet_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 mt-4 w-full px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition-colors"
-              >
-                <ExternalLink size={16} />
-                View Datasheet
-              </a>
+              {product.datasheet_url && (
+                <a
+                  href={product.datasheet_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 mt-4 w-full px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition-colors"
+                >
+                  <ExternalLink size={16} />
+                  View Datasheet
+                </a>
+              )}
             </div>
           ))
         )}

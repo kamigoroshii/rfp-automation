@@ -75,20 +75,21 @@ class ProductService:
     async def get_product_by_sku(self, sku: str) -> Optional[dict]:
         """Get product by SKU"""
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
+            db = get_db_manager()
+            if not db:
+                return None
             
-            cursor.execute("""
-                SELECT sku, product_name, category, manufacturer, 
-                       specifications, unit_price, stock_status, 
-                       datasheet_url, description
-                FROM products
-                WHERE sku = %s
-            """, (sku,))
-            
-            row = cursor.fetchone()
-            cursor.close()
-            conn.close()
+            with db.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT sku, product_name, category, manufacturer, 
+                               specifications, unit_price, stock_status, 
+                               datasheet_url, description
+                        FROM products
+                        WHERE sku = %s
+                    """, (sku,))
+                    
+                    row = cursor.fetchone()
             
             if not row:
                 return None
@@ -122,9 +123,9 @@ class ProductService:
                             SELECT sku, product_name, category, manufacturer, unit_price
                             FROM products
                             WHERE product_name ILIKE %s 
-                               OR category ILIKE %s
-                               OR manufacturer ILIKE %s
-                               OR sku ILIKE %s
+                                OR category ILIKE %s
+                                OR manufacturer ILIKE %s
+                                OR sku ILIKE %s
                             ORDER BY 
                                 CASE 
                                     WHEN product_name ILIKE %s THEN 1
@@ -165,19 +166,20 @@ class ProductService:
     async def get_categories(self) -> List[dict]:
         """Get all product categories"""
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
+            db = get_db_manager()
+            if not db:
+                return []
             
-            cursor.execute("""
-                SELECT category, COUNT(*) as product_count
-                FROM products
-                GROUP BY category
-                ORDER BY category
-            """)
-            
-            rows = cursor.fetchall()
-            cursor.close()
-            conn.close()
+            with db.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT category, COUNT(*) as product_count
+                        FROM products
+                        GROUP BY category
+                        ORDER BY category
+                    """)
+                    
+                    rows = cursor.fetchall()
             
             categories = []
             for row in rows:
@@ -194,22 +196,23 @@ class ProductService:
     async def get_statistics(self) -> dict:
         """Get product statistics"""
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
+            db = get_db_manager()
+            if not db:
+                return {"total_products": 0, "total_categories": 0, "total_manufacturers": 0, "average_price": 0.0, "in_stock": 0}
             
-            cursor.execute("""
-                SELECT 
-                    COUNT(*) as total_products,
-                    COUNT(DISTINCT category) as total_categories,
-                    COUNT(DISTINCT manufacturer) as total_manufacturers,
-                    AVG(unit_price) as avg_price,
-                    COUNT(CASE WHEN stock_status = 'In Stock' THEN 1 END) as in_stock
-                FROM products
-            """)
-            
-            row = cursor.fetchone()
-            cursor.close()
-            conn.close()
+            with db.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT 
+                            COUNT(*) as total_products,
+                            COUNT(DISTINCT category) as total_categories,
+                            COUNT(DISTINCT manufacturer) as total_manufacturers,
+                            AVG(unit_price) as avg_price,
+                            COUNT(CASE WHEN stock_status = 'In Stock' THEN 1 END) as in_stock
+                        FROM products
+                    """)
+                    
+                    row = cursor.fetchone()
             
             return {
                 "total_products": int(row[0]) if row[0] else 0,

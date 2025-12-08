@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Shield, CheckCircle, AlertTriangle, XCircle, TrendingUp, FileText } from 'lucide-react';
+import { auditorAPI } from '../services/api';
 
 const AuditorDashboard = () => {
     const [auditStats, setAuditStats] = useState({
@@ -19,46 +20,46 @@ const AuditorDashboard = () => {
 
     const loadAuditData = async () => {
         try {
-            // Mock data for now - will connect to real API later
+            setLoading(true);
+
+            // Get audit reports from API
+            const response = await auditorAPI.getReports();
+            const reports = response.data.reports || [];
+            const stats = response.data.stats || {};
+
+            // Transform reports to match UI format
+            const transformedReports = reports.map(report => ({
+                rfp_id: report.rfp_id,
+                title: report.rfp_title || 'Untitled RFP',
+                audit_timestamp: report.audit_timestamp,
+                overall_recommendation: report.overall_recommendation,
+                compliance_score: report.compliance_score || 0,
+                critical_issues_count: report.critical_issues_count || 0,
+                summary: report.summary || 'No summary available'
+            }));
+
+            setRecentAudits(transformedReports);
+
+            // Set stats
             setAuditStats({
-                total_audits: 45,
-                approved: 32,
-                flagged: 8,
-                rejected: 5,
-                avg_compliance_score: 0.87
+                total_audits: response.data.total || 0,
+                approved: stats.approved || 0,
+                flagged: stats.review || 0,  // Map 'review' to 'flagged'
+                rejected: stats.rejected || 0,
+                avg_compliance_score: stats.avg_compliance_score || 0
             });
 
-            setRecentAudits([
-                {
-                    rfp_id: 'RFP-2025-001',
-                    title: 'Supply of 11kV XLPE Cables',
-                    audit_timestamp: '2025-12-08T10:30:00Z',
-                    overall_recommendation: 'APPROVE',
-                    compliance_score: 0.94,
-                    critical_issues_count: 0,
-                    summary: 'RFP is compliant. Product matches are good. Pricing is competitive.'
-                },
-                {
-                    rfp_id: 'RFP-2025-002',
-                    title: 'HT Cable Supply for Industrial Plant',
-                    audit_timestamp: '2025-12-08T09:15:00Z',
-                    overall_recommendation: 'REVIEW',
-                    compliance_score: 0.78,
-                    critical_issues_count: 2,
-                    summary: 'RFP has 2 compliance issues. Product matches need review. Pricing has issues.'
-                },
-                {
-                    rfp_id: 'RFP-2025-003',
-                    title: 'LT Power Cable for Commercial Building',
-                    audit_timestamp: '2025-12-08T08:00:00Z',
-                    overall_recommendation: 'APPROVE',
-                    compliance_score: 0.91,
-                    critical_issues_count: 0,
-                    summary: 'RFP is compliant. Product matches are acceptable. Pricing is acceptable.'
-                }
-            ]);
         } catch (error) {
             console.error('Error loading audit data:', error);
+            // Fallback to empty state on error
+            setRecentAudits([]);
+            setAuditStats({
+                total_audits: 0,
+                approved: 0,
+                flagged: 0,
+                rejected: 0,
+                avg_compliance_score: 0
+            });
         } finally {
             setLoading(false);
         }

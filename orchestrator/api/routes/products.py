@@ -38,26 +38,9 @@ async def get_products(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{sku}")
-async def get_product_detail(sku: str):
-    """
-    Get detailed information about a specific product
-    """
-    try:
-        product = await product_service.get_product_by_sku(sku)
-        if not product:
-            raise HTTPException(status_code=404, detail="Product not found")
-        return product
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching product {sku}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/search")
 async def search_products(
-    query: str = Query(..., min_length=2),
+    query: str = Query(""),
     limit: int = 20
 ):
     """
@@ -100,4 +83,22 @@ async def get_product_stats():
         return stats
     except Exception as e:
         logger.error(f"Error fetching product stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Dynamic route must be last
+@router.get("/{sku}")
+async def get_product_detail(sku: str):
+    """
+    Get detailed information about a specific product
+    """
+    try:
+        product = await product_service.get_product_by_sku(sku)
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+        return product
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching product {sku}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { rfpAPI } from '../services/api';
 import { toast } from 'react-toastify';
-import { 
-  ArrowLeft, 
-  Calendar, 
-  ExternalLink, 
-  CheckCircle, 
+import {
+  ArrowLeft,
+  Calendar,
+  ExternalLink,
+  CheckCircle,
   AlertTriangle,
   Download
 } from 'lucide-react';
@@ -57,11 +57,21 @@ const RFPDetail = () => {
     return (
       <div className="text-center py-12">
         <p className="text-text-light">RFP not found</p>
+        <button
+          onClick={() => navigate('/rfps')}
+          className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light"
+        >
+          Back to List
+        </button>
       </div>
     );
   }
 
-  const { rfp_summary, specifications, matches, pricing, recommended_sku } = rfpData;
+  // Handle flat data structure
+  const {
+    rfp_id, title, source, deadline, scope, status, discovered_at,
+    match_score, testing_requirements, specifications, matches, pricing, recommended_sku
+  } = rfpData;
 
   return (
     <div className="space-y-6">
@@ -86,35 +96,35 @@ const RFPDetail = () => {
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-text">{rfp_summary.title}</h2>
-            <p className="text-text-light mt-1">{rfp_summary.rfp_id}</p>
+            <h2 className="text-2xl font-bold text-text">{title || 'Untitled RFP'}</h2>
+            <p className="text-text-light mt-1">{rfp_id}</p>
           </div>
-          <StatusBadge status={rfp_summary.status} />
+          <StatusBadge status={status || 'new'} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <InfoItem label="Source" value={rfp_summary.source} />
-          <InfoItem 
-            label="Deadline" 
-            value={format(new Date(rfp_summary.deadline), 'MMM dd, yyyy HH:mm')}
+          <InfoItem label="Source" value={source || 'Unknown'} />
+          <InfoItem
+            label="Deadline"
+            value={deadline ? format(new Date(deadline), 'MMM dd, yyyy HH:mm') : 'N/A'}
             icon={<Calendar size={16} />}
           />
-          <InfoItem label="Discovered" value={format(new Date(rfp_summary.discovered_at), 'MMM dd, yyyy')} />
-          {rfp_summary.match_score > 0 && (
-            <InfoItem 
-              label="Best Match Score" 
-              value={`${(rfp_summary.match_score * 100).toFixed(0)}%`}
+          <InfoItem label="Discovered" value={discovered_at ? format(new Date(discovered_at), 'MMM dd, yyyy') : 'N/A'} />
+          {match_score > 0 && (
+            <InfoItem
+              label="Best Match Score"
+              value={`${(match_score * 100).toFixed(0)}%`}
             />
           )}
         </div>
         <div className="mt-4">
           <h4 className="font-semibold text-text mb-2">Scope of Supply</h4>
-          <p className="text-text-light">{rfp_summary.scope}</p>
+          <p className="text-text-light">{scope || 'No scope defined'}</p>
         </div>
-        {rfp_summary.testing_requirements.length > 0 && (
+        {testing_requirements && testing_requirements.length > 0 && (
           <div className="mt-4">
             <h4 className="font-semibold text-text mb-2">Testing Requirements</h4>
             <div className="flex flex-wrap gap-2">
-              {rfp_summary.testing_requirements.map((req, idx) => (
+              {testing_requirements.map((req, idx) => (
                 <span key={idx} className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-sm">
                   {req}
                 </span>
@@ -148,14 +158,13 @@ const RFPDetail = () => {
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-xl font-bold text-text mb-4">Matched Products</h3>
           <div className="space-y-4">
-            {matches.map((match, idx) => (
-              <div 
+            {matches.map((match) => (
+              <div
                 key={match.sku}
-                className={`border-2 rounded-lg p-4 ${
-                  match.sku === recommended_sku 
-                    ? 'border-success bg-success/5' 
+                className={`border-2 rounded-lg p-4 ${match.sku === recommended_sku
+                    ? 'border-success bg-success/5'
                     : 'border-gray-200'
-                }`}
+                  }`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
@@ -177,7 +186,7 @@ const RFPDetail = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                  {Object.entries(match.specification_alignment).map(([key, value]) => (
+                  {match.specification_alignment && Object.entries(match.specification_alignment).map(([key, value]) => (
                     <div key={key} className="flex items-center gap-2">
                       {value === 'exact_match' ? (
                         <CheckCircle size={16} className="text-success" />
@@ -195,15 +204,17 @@ const RFPDetail = () => {
                     </div>
                   ))}
                 </div>
-                <a
-                  href={match.datasheet_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-primary hover:text-primary-light text-sm"
-                >
-                  <ExternalLink size={14} />
-                  View Datasheet
-                </a>
+                {match.datasheet_url && (
+                  <a
+                    href={match.datasheet_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-primary hover:text-primary-light text-sm"
+                  >
+                    <ExternalLink size={14} />
+                    View Datasheet
+                  </a>
+                )}
               </div>
             ))}
           </div>
@@ -229,7 +240,7 @@ const RFPDetail = () => {
               </thead>
               <tbody>
                 {pricing.map((item) => (
-                  <tr 
+                  <tr
                     key={item.sku}
                     className={item.sku === recommended_sku ? 'bg-success/5' : ''}
                   >

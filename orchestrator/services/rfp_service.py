@@ -96,7 +96,8 @@ class RFPService:
                     cursor.execute("""
                         SELECT r.rfp_id, r.title, r.source, r.deadline, r.scope, 
                             r.status, r.discovered_at, r.match_score, r.total_estimate,
-                            r.testing_requirements, r.specifications, r.recommended_sku
+                            r.testing_requirements, r.specifications, r.recommended_sku,
+                            r.attachments
                         FROM rfps r
                         WHERE r.rfp_id = %s
                     """, (rfp_id,))
@@ -157,6 +158,7 @@ class RFPService:
                 "testing_requirements": row[9] if row[9] else [],
                 "specifications": row[10] if row[10] else {},
                 "recommended_sku": row[11],
+                "attachments": row[12] if row[12] else [],
                 "matches": matches,
                 "pricing": pricing
             }
@@ -191,8 +193,8 @@ class RFPService:
                     cursor.execute("""
                         INSERT INTO rfps 
                         (rfp_id, title, source, deadline, scope, testing_requirements, 
-                         discovered_at, status)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                         discovered_at, status, attachments)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         rfp_summary.rfp_id,
                         rfp_summary.title,
@@ -201,7 +203,8 @@ class RFPService:
                         rfp_summary.scope,
                         rfp_summary.testing_requirements,
                         rfp_summary.discovered_at,
-                        rfp_summary.status
+                        rfp_summary.status,
+                        json.dumps(rfp_summary.attachments) if hasattr(rfp_summary, 'attachments') else '[]'
                     ))
                     conn.commit()
             

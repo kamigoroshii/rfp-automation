@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Mail, FileText, Download, Calendar, User, Paperclip, Eye, CheckCircle, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { emailAPI } from '../services/api';
 
 const EmailInbox = () => {
     const [emails, setEmails] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all'); // all, processed, pending
+    const [stats, setStats] = useState({
+        total: 0,
+        processed: 0,
+        pending: 0,
+        attachments: 0
+    });
 
     useEffect(() => {
         loadEmails();
@@ -13,80 +20,40 @@ const EmailInbox = () => {
 
     const loadEmails = async () => {
         try {
-            // Mock data for now - will connect to real API later
-            const mockEmails = [
-                {
-                    id: 'email-001',
-                    subject: 'RFP: Supply of 11kV XLPE Cables for Metro Project',
-                    sender: 'procurement@metro.gov.in',
-                    received_at: '2025-12-08T10:30:00Z',
-                    body_preview: 'We are seeking quotations for supply of 11kV XLPE cables with aluminum conductor. Total requirement: 5000 meters...',
-                    attachments: [
-                        {
-                            filename: 'RFP_Metro_Cables.pdf',
-                            size: 2456789,
-                            path: 'data/uploads/a1b2c3d4_RFP_Metro_Cables.pdf'
-                        },
-                        {
-                            filename: 'Technical_Specifications.pdf',
-                            size: 1234567,
-                            path: 'data/uploads/e5f6g7h8_Technical_Specifications.pdf'
-                        }
-                    ],
-                    rfp_created: true,
-                    rfp_id: 'RFP-EMAIL-2025-001',
-                    status: 'processed'
-                },
-                {
-                    id: 'email-002',
-                    subject: 'Tender Notice: HT Cable Supply for Industrial Plant',
-                    sender: 'tenders@industry.com',
-                    received_at: '2025-12-08T09:15:00Z',
-                    body_preview: 'Invitation for bids for supply of 33kV XLPE cables. Deadline: December 25, 2025. Please find attached tender document...',
-                    attachments: [
-                        {
-                            filename: 'Tender_Document.pdf',
-                            size: 3456789,
-                            path: 'data/uploads/i9j0k1l2_Tender_Document.pdf'
-                        }
-                    ],
-                    rfp_created: true,
-                    rfp_id: 'RFP-EMAIL-2025-002',
-                    status: 'processed'
-                },
-                {
-                    id: 'email-003',
-                    subject: 'Cable Supply Inquiry',
-                    sender: 'purchasing@construction.co.in',
-                    received_at: '2025-12-08T08:00:00Z',
-                    body_preview: 'We are looking for LT power cables for our commercial building project. Can you provide a quote?',
-                    attachments: [],
-                    rfp_created: false,
-                    rfp_id: null,
-                    status: 'pending'
-                },
-                {
-                    id: 'email-004',
-                    subject: 'RFQ: Control Cables for Automation System',
-                    sender: 'procurement@automation.net',
-                    received_at: '2025-12-07T16:45:00Z',
-                    body_preview: 'Request for quotation for control cables, 12 core, 1.5 sq.mm. Quantity: 2000 meters. Attached specifications...',
-                    attachments: [
-                        {
-                            filename: 'Control_Cable_Specs.pdf',
-                            size: 987654,
-                            path: 'data/uploads/m3n4o5p6_Control_Cable_Specs.pdf'
-                        }
-                    ],
-                    rfp_created: true,
-                    rfp_id: 'RFP-EMAIL-2025-003',
-                    status: 'processed'
-                }
-            ];
+            setLoading(true);
 
-            setEmails(mockEmails);
+            // Get emails from API
+            const response = await emailAPI.getEmails();
+            const emailsData = response.data.emails || [];
+
+            // Transform API data to match UI format
+            const transformedEmails = emailsData.map(email => ({
+                id: email.email_id,
+                subject: email.subject,
+                sender: email.sender,
+                received_at: email.received_at,
+                body_preview: email.body ? email.body.substring(0, 200) + '...' : 'No content',
+                attachments: email.attachments || [],
+                rfp_created: email.processed,
+                rfp_id: email.rfp_id,
+                status: email.processed ? 'processed' : 'pending'
+            }));
+
+            setEmails(transformedEmails);
+
+            // Set stats
+            setStats({
+                total: response.data.total || 0,
+                processed: response.data.processed_count || 0,
+                pending: response.data.pending_count || 0,
+                attachments: transformedEmails.reduce((sum, e) => sum + (e.attachments?.length || 0), 0)
+            });
+
         } catch (error) {
             console.error('Error loading emails:', error);
+            // Fallback to empty state on error
+            setEmails([]);
+            setStats({ total: 0, processed: 0, pending: 0, attachments: 0 });
         } finally {
             setLoading(false);
         }
@@ -148,7 +115,7 @@ const EmailInbox = () => {
                         <span className="text-text-light text-sm">Total Emails</span>
                         <Mail className="text-blue-500" size={20} />
                     </div>
-                    <div className="text-3xl font-bold text-text">{emails.length}</div>
+                    <div className="text-3xl font-bold text-text">{stats.total}</div>
                 </div>
 
                 <div className="bg-white rounded-lg shadow-md p-6">
@@ -157,7 +124,7 @@ const EmailInbox = () => {
                         <CheckCircle className="text-green-500" size={20} />
                     </div>
                     <div className="text-3xl font-bold text-green-600">
-                        {emails.filter(e => e.status === 'processed').length}
+                        {stats.processed}
                     </div>
                     <div className="text-xs text-text-light mt-1">RFPs created</div>
                 </div>
@@ -168,7 +135,7 @@ const EmailInbox = () => {
                         <Paperclip className="text-purple-500" size={20} />
                     </div>
                     <div className="text-3xl font-bold text-purple-600">
-                        {emails.reduce((sum, e) => sum + e.attachments.length, 0)}
+                        {stats.attachments}
                     </div>
                     <div className="text-xs text-text-light mt-1">PDFs downloaded</div>
                 </div>
@@ -182,8 +149,8 @@ const EmailInbox = () => {
                         <button
                             onClick={() => setFilter('all')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'all'
-                                    ? 'bg-primary text-white'
-                                    : 'bg-gray-100 text-text hover:bg-gray-200'
+                                ? 'bg-primary text-white'
+                                : 'bg-gray-100 text-text hover:bg-gray-200'
                                 }`}
                         >
                             All ({emails.length})
@@ -191,8 +158,8 @@ const EmailInbox = () => {
                         <button
                             onClick={() => setFilter('processed')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'processed'
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-gray-100 text-text hover:bg-gray-200'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-100 text-text hover:bg-gray-200'
                                 }`}
                         >
                             Processed ({emails.filter(e => e.status === 'processed').length})
@@ -200,8 +167,8 @@ const EmailInbox = () => {
                         <button
                             onClick={() => setFilter('pending')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'pending'
-                                    ? 'bg-yellow-600 text-white'
-                                    : 'bg-gray-100 text-text hover:bg-gray-200'
+                                ? 'bg-yellow-600 text-white'
+                                : 'bg-gray-100 text-text hover:bg-gray-200'
                                 }`}
                         >
                             Pending ({emails.filter(e => e.status === 'pending').length})

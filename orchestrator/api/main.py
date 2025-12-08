@@ -4,10 +4,12 @@ Main FastAPI application
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 import logging
+import os
 
 from orchestrator.config import settings
-from orchestrator.api.routes import rfp, analytics, products, copilot, auditor
+from orchestrator.api.routes import rfp, analytics, products, copilot, auditor, emails
 
 # Configure logging
 logging.basicConfig(
@@ -41,6 +43,12 @@ app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"]
 app.include_router(products.router, prefix="/api/products", tags=["Products"])
 app.include_router(copilot.router, prefix="/api/copilot", tags=["Copilot"])
 app.include_router(auditor.router, prefix="/api/auditor", tags=["Auditor"])
+app.include_router(emails.router, prefix="/api/emails", tags=["Emails"])
+
+# Serve uploaded files (PDFs, documents)
+uploads_dir = os.path.join(os.getcwd(), "data", "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 # Background Task for Email Monitoring
 import asyncio

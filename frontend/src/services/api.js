@@ -141,4 +141,41 @@ export const productAPI = {
   }
 };
 
+// Email API Services
+export const emailAPI = {
+  // Get list of emails
+  async getEmails(status = null) {
+    const params = status ? { status } : {};
+    return api.get('/emails/list', { params });
+  },
+
+  // Get email stats
+  async getEmailStats() {
+    return api.get('/emails/stats');
+  },
+
+  // Get specific email
+  async getEmail(emailId) {
+    return api.get(`/emails/${emailId}`);
+  }
+};
+
+// Auditor API Services
+export const auditorAPI = {
+  // Get audit reports
+  async getReports(limit = 50, offset = 0) {
+    return api.get('/auditor/reports', { params: { limit, offset } });
+  },
+
+  // Validate RFP
+  async validateRFP(rfpData) {
+    return api.post('/auditor/validate/rfp', rfpData);
+  },
+
+  // Generate full audit report
+  async generateReport(auditRequest) {
+    return api.post('/auditor/audit', auditRequest);
+  }
+};
+
 export default api;

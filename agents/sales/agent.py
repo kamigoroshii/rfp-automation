@@ -101,8 +101,10 @@ class SalesAgent:
             mail.login(user, password)
             mail.select("inbox")
 
-            # Search for all emails (or specific subjects)
-            status, messages = mail.search(None, "UNSEEN")
+            # Search for ALL emails (including read ones)
+            # To fetch only recent emails, you can add date filter
+            # Example: status, messages = mail.search(None, '(SINCE "01-Jan-2025")')
+            status, messages = mail.search(None, "ALL")
             
             rfps = []
             if status == "OK":
@@ -175,9 +177,14 @@ class SalesAgent:
                                 "attachments": attachments
                             }
                             
-                            rfp = self.ingest_email_rfp(email_content)
+                            # Save email to database
+                            email_id = self._save_email_to_db(email_content)
+                            
+                            rfp = self.ingest_email_rfp(email_content, email_id)
                             if rfp:
                                 rfps.append(rfp)
+                                # Update email status to processed
+                                self._update_email_status(email_id, 'processed', rfp.rfp_id)
                                 
             mail.close()
             mail.logout()
@@ -186,8 +193,59 @@ class SalesAgent:
         except Exception as e:
             logger.error(f"Error checking IMAP: {str(e)}")
             return []
+    
+    def _save_email_to_db(self, email_content: Dict[str, Any]) -> str:
+        """Save email to database"""
+        try:
+            from shared.database.connection import get_db_manager
+            
+            email_id = f"email-{str(uuid.uuid4())}"
+            
+            db = get_db_manager()
+            if db:
+                with db.get_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("""
+                            INSERT INTO emails (email_id, subject, sender, received_at, body, attachments, status)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            RETURNING email_id
+                        """, (
+                            email_id,
+                            email_content.get('subject', ''),
+                            email_content.get('sender', ''),
+                            datetime.now(),
+                            email_content.get('body', ''),
+                            json.dumps(email_content.get('attachments', [])),
+                            'pending'
+                        ))
+                        conn.commit()
+                        logger.info(f"Saved email to database: {email_id}")
+            
+            return email_id
+        except Exception as e:
+            logger.error(f"Error saving email to database: {str(e)}")
+            return f"email-{str(uuid.uuid4())}"
+    
+    def _update_email_status(self, email_id: str, status: str, rfp_id: Optional[str] = None):
+        """Update email processing status"""
+        try:
+            from shared.database.connection import get_db_manager
+            
+            db = get_db_manager()
+            if db:
+                with db.get_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("""
+                            UPDATE emails 
+                            SET status = %s, processed_at = %s, rfp_id = %s
+                            WHERE email_id = %s
+                        """, (status, datetime.now(), rfp_id, email_id))
+                        conn.commit()
+                        logger.info(f"Updated email status: {email_id} -> {status}")
+        except Exception as e:
+            logger.error(f"Error updating email status: {str(e)}")
 
-    def ingest_email_rfp(self, email_content: Dict[str, Any]) -> Optional[RFPSummary]:
+    def ingest_email_rfp(self, email_content: Dict[str, Any], email_id: str = None) -> Optional[RFPSummary]:
         """
         Ingest RFP from email content (Simulated)
         

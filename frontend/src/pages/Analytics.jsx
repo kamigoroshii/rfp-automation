@@ -63,7 +63,28 @@ const Analytics = () => {
     );
   }
 
-  const { overview, trends, revenue } = analytics;
+  // Safely extract data with defaults
+  const overview = analytics.overview || {
+    total_rfps: 0,
+    completed: 0,
+    in_progress: 0,
+    new: 0,
+    avg_match_accuracy: 0,
+    avg_processing_time: 0,
+    win_rate: 0
+  };
+
+  const trends = analytics.trends || {
+    win_rate_trend: [],
+    processing_time_trend: [],
+    match_accuracy_trend: []
+  };
+
+  const revenue = analytics.revenue || {
+    total_value: 0,
+    won_value: 0,
+    pipeline_value: 0
+  };
 
   // Chart configurations
   const winRateChartData = {
