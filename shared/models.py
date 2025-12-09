@@ -22,6 +22,7 @@ class RFPSummary:
     client_tier: str = "Standard"
     project_value: float = 0.0
     attachments: List[str] = None
+    source_email_id: Optional[str] = None
     
     def __post_init__(self):
         if self.attachments is None:

@@ -64,7 +64,7 @@ async def get_emails(
             query += " WHERE status = %s"
             params.append(status)
         
-        query += " ORDER BY received_at DESC LIMIT %s OFFSET %s"
+        query += " ORDER BY received_at DESC, email_id LIMIT %s OFFSET %s"
         params.extend([limit, offset])
         
         cursor.execute(query, params)

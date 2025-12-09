@@ -9,7 +9,7 @@ import logging
 import os
 
 from orchestrator.config import settings
-from orchestrator.api.routes import rfp, analytics, products, copilot, auditor, emails, notifications
+from orchestrator.api.routes import rfp, analytics, products, copilot, auditor, emails, notifications, pdf_generator
 
 # Configure logging
 logging.basicConfig(
@@ -45,6 +45,7 @@ app.include_router(copilot.router, prefix="/api/copilot", tags=["Copilot"])
 app.include_router(auditor.router, prefix="/api/auditor", tags=["Auditor"])
 app.include_router(emails.router, prefix="/api/emails", tags=["Emails"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
+app.include_router(pdf_generator.router, prefix="/api/rfp", tags=["pdf"])
 
 # Serve uploaded files (PDFs, documents)
 uploads_dir = os.path.join(os.getcwd(), "data", "uploads")
@@ -68,14 +69,27 @@ async def check_emails_periodically():
     while True:
         try:
             logger.info("Starting hourly email check...")
-            # Run blocking code in thread pool if needed, but for now direct call
-            rfps = agent.check_emails_imap()
+            logger.info("Starting hourly email check...")
+            # Run blocking code in thread pool
+            loop = asyncio.get_event_loop()
+            rfps = await loop.run_in_executor(None, agent.check_emails_imap)
             
             if rfps:
                 logger.info(f"Found {len(rfps)} new RFPs from email.")
                 for rfp in rfps:
                     # Save RFP to DB
+                    # Save RFP to DB
                     await rfp_service.create_rfp(rfp)
+                    
+                    # Update Email Status (Link RFP ID)
+                    if getattr(rfp, 'source_email_id', None):
+                         await loop.run_in_executor(
+                             None, 
+                             agent._update_email_status, 
+                             rfp.source_email_id, 
+                             'processed', 
+                             rfp.rfp_id
+                         )
                     
                     # Check for High Value Alert (> $1M)
                     # We need to simulate value estimation if not present, 

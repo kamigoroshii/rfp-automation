@@ -8,7 +8,11 @@ import {
   ExternalLink,
   CheckCircle,
   AlertTriangle,
-  Download
+  Download,
+  FileText,
+  X,
+  XCircle,
+  Lightbulb
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -18,6 +22,8 @@ const RFPDetail = () => {
   const [rfpData, setRfpData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [proposalPdfOpen, setProposalPdfOpen] = useState(false);
+  const [proposalPdfUrl, setProposalPdfUrl] = useState('');
 
   useEffect(() => {
     loadRFPDetail();
@@ -32,6 +38,57 @@ const RFPDetail = () => {
       toast.error('Failed to load RFP details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGeneratePDF = async () => {
+    try {
+      toast.info('Generating PDF...');
+      const response = await rfpAPI.generateProposalPDF(id);
+
+      // Determine URL based on response
+      let url;
+      if (response.data && response.data.download_url) {
+        // Build absolute URL if relative
+        url = response.data.download_url.startsWith('http')
+          ? response.data.download_url
+          : `${import.meta.env.VITE_API_URL || 'http://localhost:8003'}${response.data.download_url}`;
+      } else {
+        // Fallback or error
+        throw new Error('No download URL returned');
+      }
+
+      setProposalPdfUrl(url);
+      setProposalPdfOpen(true);
+      toast.success('PDF generated successfully');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    }
+  };
+
+  const handleGenerateDoc = async () => {
+    try {
+      toast.info('Generating Word Document...');
+      const response = await rfpAPI.generateProposalDoc(id);
+
+      if (response.data && response.data.download_url) {
+        const url = response.data.download_url.startsWith('http')
+          ? response.data.download_url
+          : `${import.meta.env.VITE_API_URL || 'http://localhost:8003'}${response.data.download_url}`;
+
+        // Trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `proposal_${id}.doc`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Word document downloaded');
+      }
+    } catch (error) {
+      console.error('Error generating Doc:', error);
+      toast.error('Failed to generate Word document');
     }
   };
 
@@ -84,12 +141,33 @@ const RFPDetail = () => {
           <ArrowLeft size={20} />
           <span>Back to List</span>
         </button>
-        <button
-          onClick={() => setFeedbackModalOpen(true)}
-          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors"
-        >
-          Submit Feedback
-        </button>
+        <div className="flex items-center gap-3">
+          {rfpData?.status === 'completed' && (
+            <>
+              <button
+                onClick={handleGenerateDoc}
+                className="px-4 py-2 bg-olive-600 text-white rounded-lg hover:bg-olive-700 transition-colors flex items-center gap-2"
+                title="Download as Word Doc"
+              >
+                <FileText size={18} />
+                Download DOC
+              </button>
+              <button
+                onClick={handleGeneratePDF}
+                className="px-4 py-2 bg-olive-600 text-white rounded-lg hover:bg-olive-700 transition-colors flex items-center gap-2"
+              >
+                <Download size={18} />
+                Generate PDF
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => setFeedbackModalOpen(true)}
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors"
+          >
+            Submit Feedback
+          </button>
+        </div>
       </div>
 
       {/* RFP Summary */}
@@ -134,6 +212,31 @@ const RFPDetail = () => {
         )}
       </div>
 
+      {/* Failure Analysis */}
+      {status === 'failed' && specifications?.failure_reason && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 shadow-sm">
+          <h3 className="text-xl font-bold text-red-800 mb-4 flex items-center gap-2">
+            <XCircle className="text-red-600" />
+            Failure Analysis
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white p-4 rounded-lg border border-red-100 shadow-sm">
+              <p className="text-xs font-bold text-red-600 uppercase tracking-wide mb-2">Root Cause</p>
+              <p className="text-gray-800 font-medium">{specifications.failure_reason}</p>
+            </div>
+            {specifications.improvement_advice && (
+              <div className="bg-white p-4 rounded-lg border border-amber-100 shadow-sm">
+                <p className="text-xs font-bold text-amber-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                  <Lightbulb size={14} />
+                  Strategy & Advice
+                </p>
+                <p className="text-gray-800 font-medium">{specifications.improvement_advice}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Specifications */}
       {specifications && Object.keys(specifications).length > 0 && (
         <div className="bg-white rounded-lg shadow-md p-6">
@@ -162,8 +265,8 @@ const RFPDetail = () => {
               <div
                 key={match.sku}
                 className={`border-2 rounded-lg p-4 ${match.sku === recommended_sku
-                    ? 'border-success bg-success/5'
-                    : 'border-gray-200'
+                  ? 'border-success bg-success/5'
+                  : 'border-gray-200'
                   }`}
               >
                 <div className="flex items-start justify-between mb-3">
@@ -262,6 +365,78 @@ const RFPDetail = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Proposal PDF Modal */}
+      {proposalPdfOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col">
+            {/* Header with Download Icon */}
+            <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-green-50 to-green-100">
+              <div>
+                <h3 className="text-lg font-bold text-gray-800">Business Proposal</h3>
+                <p className="text-sm text-gray-600">RFP #{rfp_id} - {title}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Download Icon Button */}
+                <a
+                  href={proposalPdfUrl}
+                  download={`Proposal_${rfp_id}.pdf`}
+                  className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                  title="Download PDF"
+                >
+                  <Download size={20} />
+                </a>
+                {/* Close Button */}
+                <button
+                  onClick={() => setProposalPdfOpen(false)}
+                  className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* PDF Iframe */}
+            <div className="flex-1 p-4 bg-gray-50">
+              <iframe
+                src={proposalPdfUrl}
+                className="w-full h-full border-0 rounded shadow-inner"
+                title="Proposal PDF"
+              />
+            </div>
+
+            {/* Footer with Send Mail Button */}
+            <div className="p-4 border-t bg-white flex justify-between items-center">
+              <button
+                onClick={() => setProposalPdfOpen(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Close
+              </button>
+
+              {/* Send Mail Button */}
+              <a
+                href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+                  'pamedipagaraphel@gmail.com'
+                )}&su=${encodeURIComponent(
+                  `Business Proposal for RFP #${rfp_id} - ${title || 'RFP Submission'}`
+                )}&body=${encodeURIComponent(
+                  `Dear Sir/Madam,\n\nPlease find attached our comprehensive business proposal for RFP #${rfp_id}.\n\nRFP Title: ${title}\nProposed Amount: ₹${rfpData.total_estimate?.toFixed(2) || 'N/A'}\n\nWe look forward to your positive response.\n\nBest Regards,\nComet Student Benefits\n\n(Note: This draft has been auto-generated. Please ensure the downloaded Proposal PDF is attached before sending.)`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-3 bg-olive-600 text-white rounded-lg hover:bg-olive-700 transition-all shadow-md flex items-center gap-2 font-medium"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                </svg>
+                Send via Gmail
+              </a>
+            </div>
           </div>
         </div>
       )}

@@ -18,7 +18,7 @@ const Products = () => {
 
   const loadProducts = async () => {
     try {
-      const response = await productAPI.searchProducts();
+      const response = await productAPI.getProducts();
       setProducts(response.data.products);
       setFilteredProducts(response.data.products);
     } catch (error) {

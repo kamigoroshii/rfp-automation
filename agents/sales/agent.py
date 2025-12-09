@@ -202,8 +202,7 @@ class SalesAgent:
                                 rfp = self.ingest_email_rfp(email_content, email_id)
                                 if rfp:
                                     rfps.append(rfp)
-                                    # Update email status to processed
-                                    self._update_email_status(email_id, 'processed', rfp.rfp_id)
+                                    # Status update deferred to orchestrator
                     except Exception as inner_e:
                         logger.error(f"Error processing individual email {e_id}: {inner_e}")
                         continue
@@ -285,6 +284,7 @@ class SalesAgent:
             # Extract deadline (simulated logic)
             deadline = self._parse_deadline(email_content.get('body', ''))
             
+            # Parse RFP
             rfp = RFPSummary(
                 rfp_id=rfp_id,
                 title=email_content.get('subject', 'Untitled Email RFP'),
@@ -296,7 +296,8 @@ class SalesAgent:
                 status='new',
                 client_tier=self._determine_client_tier(email_content.get('sender')),
                 project_value=0.0,
-                attachments=email_content.get('attachments', [])
+                attachments=email_content.get('attachments', []),
+                source_email_id=email_id
             )
             
             if self._evaluate_rfp(rfp):

@@ -92,6 +92,7 @@ const RFPList = () => {
               <option value="new">New</option>
               <option value="processing">Processing</option>
               <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
             </select>
           </div>
         </div>
@@ -177,7 +178,8 @@ const StatusBadge = ({ status }) => {
   const colors = {
     new: 'bg-blue-100 text-blue-800',
     processing: 'bg-warning/20 text-warning',
-    completed: 'bg-success/20 text-success'
+    completed: 'bg-success/20 text-success',
+    failed: 'bg-red-100 text-red-800'
   };
 
   return (

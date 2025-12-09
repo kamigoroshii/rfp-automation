@@ -101,6 +101,11 @@ export const rfpAPI = {
       return { data: newRFP };
     }
 
+    // If no file, use JSON endpoint with detailed results
+    if (!rfpData.file) {
+      return api.post('/rfp/create-json', rfpData);
+    }
+
     // Create FormData for backend API (expects multipart/form-data)
     const formData = new FormData();
     formData.append('title', rfpData.title);
@@ -115,9 +120,7 @@ export const rfpAPI = {
     formData.append('testing_requirements', testingReqs);
 
     // Add file if present
-    if (rfpData.file) {
-      formData.append('file', rfpData.file);
-    }
+    formData.append('file', rfpData.file);
 
     return api.post('/rfp/submit', formData, {
       headers: {
@@ -133,6 +136,16 @@ export const rfpAPI = {
       return { data: { success: true, message: 'Feedback recorded' } };
     }
     return api.post(`/rfp/${rfpId}/feedback`, feedback);
+  },
+
+  // Generate Proposal PDF
+  async generateProposalPDF(rfpId) {
+    return api.post(`/rfp/${rfpId}/generate-pdf`);
+  },
+
+  // Generate Proposal Word Doc
+  async generateProposalDoc(rfpId) {
+    return api.post(`/rfp/${rfpId}/generate-doc`);
   }
 };
 
@@ -148,8 +161,19 @@ export const analyticsAPI = {
   }
 };
 
+
+
 // Product API Services
 export const productAPI = {
+  // Get products list
+  async getProducts(params = {}) {
+    if (USE_MOCK_DATA) {
+      await delay(300);
+      return { data: { products: mockProducts, total: mockProducts.length } };
+    }
+    return api.get('/products/list', { params });
+  },
+
   // Search products
   async searchProducts(query = '') {
     if (USE_MOCK_DATA) {
@@ -197,7 +221,7 @@ export const auditorAPI = {
 
   // Generate full audit report
   async generateReport(auditRequest) {
-    return api.post('/auditor/audit', auditRequest);
+    return api.post('/auditor/audit/complete', auditRequest);
   }
 };
 

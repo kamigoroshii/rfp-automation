@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { rfpAPI, emailAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import { Upload, Link as LinkIcon, FileText, CheckCircle, Loader, Mail, Copy, Sparkles, Search } from 'lucide-react';
@@ -7,8 +7,40 @@ import { extractSpecifications, getSpecificationSummary, validateSpecifications 
 import { matchProducts, getRecommendedProduct } from '../utils/productMatcher';
 import { calculatePricing, formatCurrency } from '../utils/pricingCalculator';
 
+const MOCK_URL_DATA = {
+  'https://tenders.gov.in/rfp/metro-rail-cabling': {
+    title: 'Urgent: 33kV Low Loss Cabling for Metro Phase IV',
+    deadline: '2025-12-25T17:00',
+    scope: 'Requirement for 25km of 33kV XLPE Underground Cables. \nSpecifications:\n- Voltage: 33kV\n- Conductor: Copper\n- Core: 3-Core\n- Armour: Steel Wire\n- Sheath: FRLS PVC',
+    testing_requirements: 'Type Test, Routine Test, IEC 60502'
+  },
+  'https://solar-energy.corp/bids/50mw-module-supply': {
+    title: 'Supply of 540Wp Mono-PERC Modules',
+    deadline: '2026-01-15T12:00',
+    scope: 'Procurement of 10,000 units of Mono PERC Solar Modules for 50MW Solar Park.\nRequired Specs:\n- Power Output: >540Wp\n- Efficiency: >21%\n- Technology: Mono PERC Half-Cut\n- Warranty: 25 Years Linear Performance',
+    testing_requirements: 'EL Test, Flash Test, IEC 61215'
+  },
+  'https://smart-infra.city/tenders/smart-street-lights': {
+    title: 'Smart LED Street Lighting Implementation',
+    deadline: '2025-12-30T10:00',
+    scope: 'Supply and installation of 500 Smart LED Street Lights with LoraWAN control.\nSpecs:\n- Wattage: 120W\n- Lumens: >14000lm\n- IP Rating: IP66\n- Control: LoraWAN NEMA Controller',
+    testing_requirements: 'LM-79, LM-80, IP Test'
+  }
+};
+
 const SubmitRFP = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.prefill) {
+      setFormData(prev => ({ ...prev, ...location.state.prefill }));
+      if (location.state.prefill.source?.startsWith('http')) {
+        setSubmissionType('url');
+      }
+    }
+  }, [location.state]);
+
   const [submissionType, setSubmissionType] = useState('url');
 
   // Quick Start mode: 'fresh', 'email', or 'clone'
@@ -31,6 +63,33 @@ const SubmitRFP = () => {
   const [submitting, setSubmitting] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [processedData, setProcessedData] = useState(null);
+
+  // Handle Mock URL Scraping
+  const handleMockUrlScrape = async (url) => {
+    if (!url) {
+      toast.error('Please enter a URL first');
+      return;
+    }
+
+    toast.info('Analyzing URL content...', { autoClose: 1500 });
+
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    if (MOCK_URL_DATA[url]) {
+      const data = MOCK_URL_DATA[url];
+      setFormData(prev => ({
+        ...prev,
+        title: data.title,
+        deadline: data.deadline,
+        scope: data.scope,
+        testing_requirements: data.testing_requirements
+      }));
+      toast.success('Successfully extracted RFP details!');
+    } else {
+      toast.warning('Could not auto-extract details. Please fill manually.');
+    }
+  };
 
   // Load pending emails and existing RFPs when component mounts or mode changes
   useEffect(() => {
@@ -210,12 +269,15 @@ const SubmitRFP = () => {
         deadline: new Date(formData.deadline).toISOString(),
         scope: formData.scope,
         testing_requirements: testingReqs,
+        file: file, // Include file object if present
         // Add processed results
         match_score: recommendedMatch?.match_score || 0,
         total_estimate: recommendedPricing?.total || 0,
         status: 'completed',
-        specifications: specSummary,
-        matched_products: matches.length,
+        // Send detailed results for immediate saving
+        specifications: specifications, // Send full array
+        matches: matches,
+        pricing: pricingList,
         recommended_sku: recommendedSku
       };
 
@@ -431,15 +493,44 @@ const SubmitRFP = () => {
               <label className="block text-sm font-medium text-text mb-2">
                 RFP Source URL <span className="text-error">*</span>
               </label>
-              <input
-                type="url"
-                name="source"
-                value={formData.source}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="https://example.com/rfp-document.pdf"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  name="source"
+                  value={formData.source}
+                  onChange={handleInputChange}
+                  required
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="https://example.com/rfp-document.pdf"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleMockUrlScrape(formData.source)}
+                  className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary-dark transition-colors flex items-center gap-2"
+                >
+                  <Sparkles size={18} />
+                  Fetch
+                </button>
+              </div>
+
+              {/* Mock URL Quick Links */}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="text-xs text-text-light py-1">Try Demo URLs:</span>
+                {Object.keys(MOCK_URL_DATA).map((url, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, source: url }));
+                      handleMockUrlScrape(url);
+                    }}
+                    className="text-xs px-2 py-1 bg-gray-100 text-primary border border-primary/20 rounded hover:bg-primary/10 transition-colors truncate max-w-[200px]"
+                    title={MOCK_URL_DATA[url].title}
+                  >
+                    {url}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

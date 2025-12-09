@@ -86,8 +86,8 @@ async def chat_with_copilot(request: ChatRequest):
                 logger.info(f"Retrieved {len(relevant_chunks)} relevant chunks for RAG")
 
         # Initialize model
-        # Using gemini-2.5-flash as confirmed by list_models
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        # Using gemini-1.5-flash as confirmed by list_models
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         # Construct chat history
         chat_history = []
