@@ -71,13 +71,18 @@ class DocumentAgent:
         Parse PDF document and extract text
         
         Args:
-            pdf_path: Path to PDF file
+            pdf_path: Path to PDF file (can be None)
             
         Returns:
             Dictionary with extracted content
         """
         try:
             logger.info(f"Parsing PDF: {pdf_path}")
+            
+            # Check if pdf_path is None or empty
+            if not pdf_path:
+                logger.warning("PDF path is None or empty - cannot parse")
+                raise ValueError("PDF path cannot be None or empty")
             
             if not Path(pdf_path).exists():
                 raise FileNotFoundError(f"PDF file not found: {pdf_path}")

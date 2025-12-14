@@ -98,7 +98,7 @@ class RFPService:
                         SELECT r.rfp_id, r.title, r.source, r.deadline, r.scope, 
                             r.status, r.discovered_at, r.match_score, r.total_estimate,
                             r.testing_requirements, r.specifications, r.recommended_sku,
-                            r.attachments
+                            r.attachments, r.audit_report
                         FROM rfps r
                         WHERE r.rfp_id = %s
                     """, (rfp_id,))
@@ -160,6 +160,7 @@ class RFPService:
                         "specifications": row[10] if row[10] else {},
                         "recommended_sku": row[11],
                         "attachments": row[12] if row[12] else [],
+                        "audit_report": row[13] if row[13] else {},
                         "matches": matches,
                         "pricing": pricing
                     }
@@ -345,10 +346,26 @@ class RFPService:
                                 if f.startswith(rfp_id):
                                     path = os.path.join(upload_dir, f)
                                     break
+                        
                         metadata = {'rfp_id': rfp_id, 'title': title, 'deadline': deadline, 'buyer': "Unknown"}
                         
-                        # Try real PDF processing
-                        result = await wf.process_rfp_from_pdf(pdf_path=path, rfp_metadata=metadata)
+                        # Check if this is an email-based RFP (no PDF)
+                        if not path:
+                            logger.warning(f"No PDF found for RFP {rfp_id} - this is likely an email-based RFP")
+                            # For email-based RFPs, use mock/fallback result
+                            # In a production system, you would extract text from the email body
+                            # and process it through a text-based workflow
+                            result = {
+                                'status': 'success',
+                                'message': 'Email-based RFP - no PDF processing needed',
+                                'specifications': {'source': 'email', 'parsed': False},
+                                'matches': [],
+                                'pricing': [],
+                                'recommendation': {'sku': None}
+                            }
+                        else:
+                            # Try real PDF processing only if PDF exists
+                            result = await wf.process_rfp_from_pdf(pdf_path=path, rfp_metadata=metadata)
 
                 except Exception as inner_e:
                     logger.error(f"Sync workflow failed or import error, using Mock Result: {inner_e}")
@@ -469,13 +486,15 @@ class RFPService:
                         SET match_score = %s, 
                             total_estimate = %s,
                             recommended_sku = %s,
-                            specifications = %s
+                            specifications = %s,
+                            audit_report = %s
                         WHERE rfp_id = %s
                     """, (
                         top_match_score, 
                         total_est, 
                         rec_sku, 
                         json.dumps(result.get('specifications', [])),
+                        json.dumps(result.get('audit_report', {})),
                         rfp_id
                     ))
                     

@@ -10,6 +10,7 @@ from agents.document.agent import DocumentAgent
 from agents.technical.agent import TechnicalAgent
 from agents.pricing.agent import PricingAgent
 from agents.learning.agent import LearningAgent
+from agents.auditor.agent import AuditorAgent
 
 from shared.models import (
     RFPSummary, 
@@ -31,6 +32,7 @@ class RFPWorkflow:
         self.technical_agent = TechnicalAgent()
         self.pricing_agent = PricingAgent()
         self.learning_agent = LearningAgent()
+        self.auditor_agent = AuditorAgent()
         
         logger.info("RFP Workflow Orchestrator initialized")
     
@@ -155,6 +157,7 @@ class RFPWorkflow:
                         None
                     )
                 },
+                'audit_report': audit_report,
                 'processing_time': processing_time
             }
             
@@ -288,7 +291,7 @@ class RFPWorkflow:
         Process RFP from PDF file
         
         Args:
-            pdf_path: Path to PDF file
+            pdf_path: Path to PDF file (can be None for email-based RFPs)
             rfp_metadata: RFP metadata (title, deadline, buyer, etc.)
             quantity: Required quantity
             testing_requirements: List of testing requirements
@@ -299,6 +302,15 @@ class RFPWorkflow:
         try:
             start_time = datetime.now()
             logger.info(f"Starting RFP processing from PDF: {pdf_path}")
+            
+            # Check if PDF path is provided
+            if not pdf_path:
+                logger.warning("No PDF path provided - skipping PDF parsing (email-based RFP)")
+                return {
+                    'status': 'error',
+                    'message': 'No PDF file provided for processing. Email-based RFPs should use text-based workflow.',
+                    'rfp_id': rfp_metadata.get('rfp_id', 'unknown')
+                }
             
             # Step 1: Parse PDF
             logger.info("Step 1: Parsing PDF...")
@@ -332,11 +344,39 @@ class RFPWorkflow:
                 matches
             )
             
+            # Step 6: Audit the results
+            logger.info("Step 6: Auditing proposal...")
+            # Create RFPSummary for auditor
+            rfp_summary = RFPSummary(
+                rfp_id=rfp_id,
+                title=rfp_metadata.get('title', 'Unknown'),
+                source=rfp_metadata.get('source', 'PDF'),
+                deadline=deadline,
+                scope=text_content.get('text', '')[:500] if isinstance(text_content, dict) else str(text_content)[:500],
+                testing_requirements=testing_requirements or [],
+                discovered_at=datetime.now(),
+                status='auditing'
+            )
+            
+            audit_report = self.auditor_agent.validate_rfp(rfp_summary)
+            
+            # Validate matches
+            matches_validation = self.auditor_agent.validate_matches(rfp_summary, matches)
+            audit_report['matches_validation'] = matches_validation
+            
+            # Validate pricing (use first pricing item as representative)
+            if pricing_list:
+                pricing_validation = self.auditor_agent.validate_pricing(
+                    rfp_summary,
+                    pricing_list[0]
+                )
+                audit_report['pricing_validation'] = pricing_validation
+            
             end_time = datetime.now()
             processing_time = (end_time - start_time).total_seconds()
             
             logger.info(
-                f"PDF processing completed in {processing_time:.2f} seconds"
+                f"PDF processing completed in {processing_time:.2f} seconds - Audit: {audit_report['recommendation']}"
             )
             
             return {

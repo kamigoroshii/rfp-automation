@@ -57,7 +57,8 @@ const SubmitRFP = () => {
     source: '',
     deadline: '',
     scope: '',
-    testing_requirements: ''
+    testing_requirements: '',
+    pricing_strategy: 'balanced' // 'aggressive', 'balanced', 'conservative'
   });
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -186,7 +187,8 @@ const SubmitRFP = () => {
       source: 'https://example.com/tender-rfp-2025',
       deadline: '2025-12-15T17:00',
       scope: 'Supply of 5000 meters of 11kV XLPE cables with 3 core aluminum conductor, size 240 sq.mm. Cables should comply with IEC 60502-2 and IS 7098 standards. Armored with steel wire armor (SWA).',
-      testing_requirements: 'Type test, Routine test, Partial discharge test'
+      testing_requirements: 'Type test, Routine test, Partial discharge test',
+      pricing_strategy: 'balanced'
     });
     toast.info('Sample data filled. You can now submit!');
   };
@@ -270,6 +272,114 @@ const SubmitRFP = () => {
       // Step 6: Learning Agent - Optimization (0.5s)
       await addStep('🧠 Learning Agent: Applying learned optimizations...', 500);
 
+      // Calculate compliance score based on validation checks
+      const calculateComplianceScore = () => {
+        let score = 0;
+        let checks = {
+          specificationsComplete: false,
+          testingRequirementsMet: false,
+          deadlineAcceptable: false,
+          pricingWithinRange: false,
+          matchQualityHigh: false
+        };
+        let issues = [];
+
+        // Check 1: Specifications Complete (20 points)
+        if (specifications && specifications.length >= 3) {
+          score += 20;
+          checks.specificationsComplete = true;
+        } else {
+          issues.push({
+            category: 'Specification Gap',
+            description: 'Missing technical details - need at least 3 specifications',
+            field: 'Scope of Supply',
+            action: 'Add more detailed technical specifications (voltage, conductor type, insulation, etc.)',
+            severity: 'high'
+          });
+        }
+
+        // Check 2: Testing Requirements (20 points)
+        if (testingReqs && testingReqs.length > 0) {
+          score += 20;
+          checks.testingRequirementsMet = true;
+        } else {
+          issues.push({
+            category: 'Testing Clarity',
+            description: 'Testing requirements need clarification',
+            field: 'Testing Requirements',
+            action: 'Specify required tests (e.g., Type Test, Routine Test, IEC standards)',
+            severity: 'medium'
+          });
+        }
+
+        // Check 3: Deadline Acceptable (20 points)
+        const daysUntilDeadline = Math.ceil((new Date(formData.deadline) - new Date()) / (1000 * 60 * 60 * 24));
+        if (daysUntilDeadline >= 7) {
+          score += 20;
+          checks.deadlineAcceptable = true;
+        } else {
+          issues.push({
+            category: 'Tight Timeline',
+            description: `Only ${daysUntilDeadline} days until deadline - may impact delivery`,
+            field: 'Deadline',
+            action: `Extend deadline to at least ${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString()} or confirm rush delivery is feasible`,
+            severity: 'high'
+          });
+        }
+
+        // Check 4: Pricing Strategy Optimal (20 points)
+        if (recommendedPricing) {
+          const urgencyRatio = recommendedPricing.urgency_adjustment / recommendedPricing.subtotal;
+          const currentStrategy = formData.pricing_strategy || 'balanced';
+          
+          // Aggressive strategy absorbs urgency costs for competitiveness
+          if (currentStrategy === 'aggressive' || urgencyRatio <= 0.08) {
+            score += 20;
+            checks.pricingWithinRange = true;
+          } else {
+            // Calculate potential savings with aggressive pricing
+            const currentTotal = recommendedPricing.total;
+            const aggressiveTotal = currentTotal - (recommendedPricing.urgency_adjustment * 0.5); // Absorb 50% of urgency
+            const savingsAmount = currentTotal - aggressiveTotal;
+            
+            issues.push({
+              category: 'Pricing Strategy',
+              description: `Current '${currentStrategy}' pricing includes full ${(urgencyRatio * 100).toFixed(0)}% urgency surcharge (₹${recommendedPricing.urgency_adjustment.toFixed(2)})`,
+              field: 'Pricing Strategy',
+              action: `Switch to 'Aggressive' pricing to absorb 50% of urgency costs. This makes your bid ₹${savingsAmount.toFixed(2)} more competitive while maintaining acceptable margins.`,
+              currentValue: currentStrategy,
+              recommendedValue: 'aggressive',
+              severity: urgencyRatio > 0.12 ? 'high' : 'medium'
+            });
+          }
+        } else {
+          score += 15; // Partial credit if no urgency adjustment
+        }
+
+        // Check 5: Match Quality High (20 points)
+        if (recommendedMatch && recommendedMatch.match_score >= 0.85) {
+          score += 20;
+          checks.matchQualityHigh = true;
+        } else {
+          issues.push({
+            category: 'Product Match',
+            description: 'Product match quality below optimal threshold',
+            field: 'Scope of Supply',
+            action: 'Review and clarify technical specifications to improve product matching',
+            severity: 'low'
+          });
+        }
+
+        return {
+          score,
+          checks,
+          issues,
+          recommendation: score >= 90 ? 'APPROVE' : score >= 70 ? 'REVIEW' : 'REVISE'
+        };
+      };
+
+      const auditResult = calculateComplianceScore();
+
       // Store processed data for preview
       const processed = {
         specifications,
@@ -280,7 +390,8 @@ const SubmitRFP = () => {
         recommendedMatch,
         recommendedPricing,
         quantity,
-        testingReqs
+        testingReqs,
+        auditResult // Add audit result to processed data
       };
 
       setProcessedData(processed);
@@ -323,11 +434,11 @@ const SubmitRFP = () => {
 
       const response = await rfpAPI.submitRFP(rfpData);
 
-      toast.success('RFP submitted successfully!', { autoClose: 2000 });
-
-      // Redirect to RFP detail page
+      toast.success('RFP submitted successfully! Redirecting to audit report...', { autoClose: 2000 });
+      
+      // Navigate directly to RFP detail page to view audit report
       setTimeout(() => {
-        navigate(`/rfp/${response.data.rfp_id}`);
+        navigate(`/rfp/${response.data.rfp_id || response.data.id}`);
       }, 2000);
     } catch (error) {
       console.error('Error submitting RFP:', error);
@@ -633,6 +744,45 @@ const SubmitRFP = () => {
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               />
+              {formData.deadline && (
+                <div className="mt-2">
+                  {(() => {
+                    const daysUntil = Math.ceil((new Date(formData.deadline) - new Date()) / (1000 * 60 * 60 * 24));
+                    
+                    return (
+                      <div className="p-2 rounded-lg border bg-blue-50 text-blue-700 text-sm">
+                        <p>
+                          📅 {daysUntil} days until deadline
+                          {daysUntil < 14 && " - Tight timeline may require aggressive pricing"}
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Pricing Strategy */}
+            <div>
+              <label className="block text-sm font-medium text-text mb-2">
+                Pricing Strategy <span className="text-error">*</span>
+              </label>
+              <select
+                name="pricing_strategy"
+                value={formData.pricing_strategy}
+                onChange={handleInputChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="aggressive">Aggressive - Win-focused (absorb urgency costs)</option>
+                <option value="balanced">Balanced - Standard market pricing</option>
+                <option value="conservative">Conservative - Premium pricing with buffer</option>
+              </select>
+              <p className="mt-2 text-sm text-text-light">
+                {formData.pricing_strategy === 'aggressive' && '🎯 Aggressive: Lower margins, higher win probability. Absorbs 50% of urgency surcharges.'}
+                {formData.pricing_strategy === 'balanced' && '⚖️ Balanced: Market-standard pricing with typical margins and full cost pass-through.'}
+                {formData.pricing_strategy === 'conservative' && '🛡️ Conservative: Higher margins, lower risk. Includes safety buffers and premiums.'}
+              </p>
             </div>
 
             {/* Scope */}
@@ -826,6 +976,234 @@ const SubmitRFP = () => {
             </div>
           </div>
 
+          {/* Auditor Report Section - BEFORE Pricing */}
+          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg shadow-lg p-6 border-2 border-purple-300">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-purple-600 text-white rounded-full p-3">
+                <CheckCircle size={32} />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-purple-900">🔍 Auditor Validation</h3>
+                <p className="text-purple-700">Quality assurance & compliance checks completed</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <p className="text-sm text-gray-600 mb-1">Compliance Score</p>
+                <p className={`text-3xl font-bold ${
+                  processedData.auditResult.score >= 90 ? 'text-green-600' :
+                  processedData.auditResult.score >= 70 ? 'text-yellow-600' :
+                  'text-red-600'
+                }`}>
+                  {processedData.auditResult.score}%
+                </p>
+                <p className={`text-xs mt-1 ${
+                  processedData.auditResult.score >= 90 ? 'text-green-700' :
+                  processedData.auditResult.score >= 70 ? 'text-yellow-700' :
+                  'text-red-700'
+                }`}>
+                  {processedData.auditResult.score >= 90 ? '✓ Highly Compliant' :
+                   processedData.auditResult.score >= 70 ? '⚠ Review Required' :
+                   '✗ Needs Revision'}
+                </p>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <p className="text-sm text-gray-600 mb-1">Match Quality</p>
+                <p className="text-3xl font-bold text-blue-600">
+                  {processedData.matches && processedData.matches[0] ? (processedData.matches[0].match_score * 100).toFixed(0) : 0}%
+                </p>
+                <p className="text-xs text-blue-700 mt-1">✓ Excellent Match</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <p className="text-sm text-gray-600 mb-1">Recommendation</p>
+                <p className={`text-2xl font-bold ${
+                  processedData.auditResult.recommendation === 'APPROVE' ? 'text-green-600' :
+                  processedData.auditResult.recommendation === 'REVIEW' ? 'text-yellow-600' :
+                  'text-red-600'
+                }`}>
+                  {processedData.auditResult.recommendation}
+                </p>
+                <p className={`text-xs mt-1 ${
+                  processedData.auditResult.recommendation === 'APPROVE' ? 'text-green-700' :
+                  processedData.auditResult.recommendation === 'REVIEW' ? 'text-yellow-700' :
+                  'text-red-700'
+                }`}>
+                  {processedData.auditResult.recommendation === 'APPROVE' ? '✓ Ready to Submit' :
+                   processedData.auditResult.recommendation === 'REVIEW' ? '⚠ Review Before Submit' :
+                   '✗ Revise Required'}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <CheckCircle className="text-green-600" size={20} />
+                Validation Checks
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  {processedData.auditResult.checks.specificationsComplete ? (
+                    <CheckCircle className="text-green-600" size={16} />
+                  ) : (
+                    <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                  <span>Specifications Complete</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  {processedData.auditResult.checks.testingRequirementsMet ? (
+                    <CheckCircle className="text-green-600" size={16} />
+                  ) : (
+                    <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                  <span>Testing Requirements Met</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  {processedData.auditResult.checks.deadlineAcceptable ? (
+                    <CheckCircle className="text-green-600" size={16} />
+                  ) : (
+                    <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                  <span>Deadline Acceptable</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  {processedData.auditResult.checks.pricingWithinRange ? (
+                    <CheckCircle className="text-green-600" size={16} />
+                  ) : (
+                    <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                  <span>Pricing Within Range</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 p-4 bg-purple-100 border border-purple-300 rounded-lg">
+              <p className="text-sm text-purple-900">
+                <strong>📊 Note:</strong> After submission, you'll be redirected to view the complete audit report with detailed compliance analysis, risk assessment, and recommendations.
+              </p>
+            </div>
+          </div>
+
+          {/* SmartBid Co-Pilot Response Section */}
+          <div className={`rounded-lg shadow-lg p-6 border-2 ${
+            processedData.auditResult.score >= 90 ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-400' : 
+            'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-400'
+          }`}>
+            <div className="flex items-start gap-4 mb-4">
+              <div className={`rounded-full p-3 ${
+                processedData.auditResult.score >= 90 ? 'bg-green-600' : 'bg-amber-600'
+              } text-white`}>
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className={`text-2xl font-bold mb-2 ${
+                  processedData.auditResult.score >= 90 ? 'text-green-900' : 'text-amber-900'
+                }`}>
+                  🤖 SmartBid Co-Pilot
+                </h3>
+                
+                {processedData.auditResult.score >= 90 ? (
+                  // SCENARIO 1: PASSED (High Score)
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-green-800">
+                      <CheckCircle className="text-green-600" size={24} />
+                      <span className="text-xl font-semibold">Excellent! This RFP looks great!</span>
+                    </div>
+                    <div className="bg-white/80 rounded-lg p-4 border border-green-200">
+                      <p className="text-green-900 leading-relaxed">
+                        <strong>🎯 Analysis:</strong> Your RFP submission has passed all critical validation checks with a <strong className="text-green-700">{processedData.auditResult.score}% compliance score</strong>. 
+                        The specifications are complete, product matches are highly accurate, and pricing is competitive. 
+                        No issues detected that would prevent submission.
+                      </p>
+                    </div>
+                    <div className="bg-white/80 rounded-lg p-4 border border-green-200">
+                      <p className="text-green-900">
+                        <strong className="text-green-700">✅ Recommendation:</strong> You're ready to proceed! 
+                        This proposal meets all requirements and is competitively positioned. Click "Send to RFP List" to submit immediately.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-green-700 bg-green-100 rounded p-3">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                      </svg>
+                      <span><strong>Pro Tip:</strong> After submission, you'll receive real-time updates on the RFP status and can track it in the dashboard.</span>
+                    </div>
+                  </div>
+                ) : (
+                  // SCENARIO 2: FLAGGED (Low Score / Issues Detected)
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-amber-800">
+                      <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span className="text-xl font-semibold">Hold On — Let's Review This First</span>
+                    </div>
+                    <div className="bg-white/80 rounded-lg p-4 border border-amber-200">
+                      <p className="text-amber-900 leading-relaxed mb-3">
+                        <strong>⚠️ Analysis:</strong> The auditor has identified {processedData.auditResult.issues.length} issue{processedData.auditResult.issues.length > 1 ? 's' : ''} that need attention. 
+                        Addressing these will significantly improve your chances of winning this RFP.
+                      </p>
+                      <div className="space-y-3">
+                        {processedData.auditResult.issues.map((issue, idx) => (
+                          <div key={idx} className="bg-amber-50 rounded-lg p-3 border border-amber-300">
+                            <div className="flex items-start gap-2 mb-2">
+                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                issue.severity === 'high' ? 'bg-red-200 text-red-800' :
+                                issue.severity === 'medium' ? 'bg-yellow-200 text-yellow-800' :
+                                'bg-blue-200 text-blue-800'
+                              }`}>
+                                {issue.severity?.toUpperCase() || 'ISSUE'}
+                              </span>
+                              <div className="flex-1">
+                                <p className="font-bold text-amber-900">{issue.category}</p>
+                                <p className="text-sm text-amber-800 mt-1">{issue.description}</p>
+                              </div>
+                            </div>
+                            <div className="mt-2 pl-2 border-l-2 border-amber-400">
+                              <p className="text-xs text-amber-700 mb-1">
+                                <strong>📝 Field to Edit:</strong> <span className="font-mono bg-amber-100 px-1 rounded">{issue.field}</span>
+                              </p>
+                              <p className="text-xs text-amber-700">
+                                <strong>✏️ What to Do:</strong> {issue.action}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bg-white/80 rounded-lg p-4 border border-amber-200">
+                      <p className="text-amber-900 mb-3">
+                        <strong className="text-amber-700">🔧 Next Steps:</strong>
+                      </p>
+                      <ol className="list-decimal list-inside space-y-1 text-sm text-amber-900">
+                        <li>Click "<strong>Edit Details</strong>" button below to modify the form</li>
+                        <li>Update the fields highlighted above with recommended changes</li>
+                        <li>Click "<strong>Process RFP</strong>" again to re-validate</li>
+                        <li>If all issues are resolved, you'll see a green "Ready to Submit" message</li>
+                      </ol>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-100 rounded p-3">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <span><strong>Note:</strong> Taking a few minutes to address these issues can improve your win probability significantly.</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Pricing Estimate */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center gap-2 mb-4">
@@ -940,7 +1318,15 @@ const SubmitRFP = () => {
               </button>
             </div>
             <p className="text-center text-sm text-text-light mt-3">
-              Review the details above and click "Send to RFP List" to confirm submission
+              {processedData.auditResult.score >= 90 ? (
+                <>
+                  <span className="text-green-700 font-semibold">✅ All checks passed!</span> Click "Send to RFP List" to submit and view detailed audit report.
+                </>
+              ) : (
+                <>
+                  <span className="text-amber-700 font-semibold">⚠️ {processedData.auditResult.issues.length} issue{processedData.auditResult.issues.length > 1 ? 's' : ''} detected.</span> Click "Edit Details" to fix issues, or proceed anyway to submit.
+                </>
+              )}
             </p>
           </div>
         </div>

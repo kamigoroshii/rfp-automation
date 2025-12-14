@@ -52,7 +52,7 @@ const RFPDetail = () => {
         // Build absolute URL if relative
         url = response.data.download_url.startsWith('http')
           ? response.data.download_url
-          : `${import.meta.env.VITE_API_URL || 'http://localhost:8003'}${response.data.download_url}`;
+          : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${response.data.download_url}`;
       } else {
         // Fallback or error
         throw new Error('No download URL returned');
@@ -75,7 +75,7 @@ const RFPDetail = () => {
       if (response.data && response.data.download_url) {
         const url = response.data.download_url.startsWith('http')
           ? response.data.download_url
-          : `${import.meta.env.VITE_API_URL || 'http://localhost:8003'}${response.data.download_url}`;
+          : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${response.data.download_url}`;
 
         // Trigger download
         const link = document.createElement('a');
@@ -253,6 +253,142 @@ const RFPDetail = () => {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Audit Report */}
+      {rfpData?.audit_report && Object.keys(rfpData.audit_report).length > 0 && (
+        <div className={`rounded-lg shadow-md p-6 ${
+          rfpData.audit_report.is_compliant 
+            ? 'bg-green-50 border-2 border-green-200' 
+            : rfpData.audit_report.recommendation === 'REJECT' 
+            ? 'bg-red-50 border-2 border-red-200' 
+            : 'bg-yellow-50 border-2 border-yellow-200'
+        }`}>
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h3 className="text-xl font-bold text-text mb-2 flex items-center gap-2">
+                {rfpData.audit_report.is_compliant ? (
+                  <CheckCircle className="text-green-600" size={24} />
+                ) : (
+                  <AlertTriangle className="text-amber-600" size={24} />
+                )}
+                Audit Report
+              </h3>
+              <p className="text-sm text-text-light">
+                Validated at: {rfpData.audit_report.validated_at ? format(new Date(rfpData.audit_report.validated_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
+              </p>
+            </div>
+            <div className="text-right">
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold ${
+                rfpData.audit_report.recommendation === 'APPROVE' 
+                  ? 'bg-green-600 text-white' 
+                  : rfpData.audit_report.recommendation === 'REJECT' 
+                  ? 'bg-red-600 text-white' 
+                  : 'bg-yellow-600 text-white'
+              }`}>
+                {rfpData.audit_report.recommendation}
+              </div>
+              <p className="text-sm text-text-light mt-2">
+                Compliance Score: <span className="font-bold">{(rfpData.audit_report.compliance_score * 100).toFixed(0)}%</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Issues */}
+          {rfpData.audit_report.issues && rfpData.audit_report.issues.length > 0 && (
+            <div className="bg-white rounded-lg p-4 mb-4 border-l-4 border-red-500">
+              <h4 className="font-bold text-red-700 mb-2 flex items-center gap-2">
+                <XCircle size={18} />
+                Critical Issues ({rfpData.audit_report.issues.length})
+              </h4>
+              <ul className="list-disc list-inside space-y-1">
+                {rfpData.audit_report.issues.map((issue, idx) => (
+                  <li key={idx} className="text-red-800 text-sm">{issue}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Warnings */}
+          {rfpData.audit_report.warnings && rfpData.audit_report.warnings.length > 0 && (
+            <div className="bg-white rounded-lg p-4 mb-4 border-l-4 border-yellow-500">
+              <h4 className="font-bold text-yellow-700 mb-2 flex items-center gap-2">
+                <AlertTriangle size={18} />
+                Warnings ({rfpData.audit_report.warnings.length})
+              </h4>
+              <ul className="list-disc list-inside space-y-1">
+                {rfpData.audit_report.warnings.map((warning, idx) => (
+                  <li key={idx} className="text-yellow-800 text-sm">{warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Compliance Checks */}
+          {rfpData.audit_report.checks && Object.keys(rfpData.audit_report.checks).length > 0 && (
+            <div className="bg-white rounded-lg p-4">
+              <h4 className="font-bold text-text mb-3">Compliance Checks</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {Object.entries(rfpData.audit_report.checks).map(([checkName, checkResult]) => (
+                  <div key={checkName} className={`flex items-center gap-2 p-3 rounded-lg ${
+                    checkResult.passed ? 'bg-green-100' : 'bg-red-100'
+                  }`}>
+                    {checkResult.passed ? (
+                      <CheckCircle className="text-green-600" size={20} />
+                    ) : (
+                      <XCircle className="text-red-600" size={20} />
+                    )}
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">
+                        {checkName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </p>
+                      {checkResult.message && (
+                        <p className="text-xs text-text-light">{checkResult.message}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Match and Pricing Validation */}
+          {rfpData.audit_report.matches_validation && (
+            <div className="bg-white rounded-lg p-4 mt-4">
+              <h4 className="font-bold text-text mb-2">Product Match Validation</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="text-center">
+                  <p className="text-xs text-text-light">Best Match</p>
+                  <p className="text-lg font-bold text-primary">
+                    {(rfpData.audit_report.matches_validation.best_match_score * 100).toFixed(0)}%
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-text-light">Average</p>
+                  <p className="text-lg font-bold">
+                    {(rfpData.audit_report.matches_validation.average_match_score * 100).toFixed(0)}%
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-text-light">Matches</p>
+                  <p className="text-lg font-bold">{rfpData.audit_report.matches_validation.match_count}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-text-light">Quality</p>
+                  <p className={`text-lg font-bold ${
+                    rfpData.audit_report.matches_validation.recommendation === 'GOOD' 
+                      ? 'text-green-600' 
+                      : rfpData.audit_report.matches_validation.recommendation === 'ACCEPTABLE' 
+                      ? 'text-yellow-600' 
+                      : 'text-red-600'
+                  }`}>
+                    {rfpData.audit_report.matches_validation.recommendation}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -466,11 +602,22 @@ const StatusBadge = ({ status }) => {
   const colors = {
     new: 'bg-blue-100 text-blue-800',
     processing: 'bg-warning/20 text-warning',
-    completed: 'bg-success/20 text-success'
+    auditing: 'bg-purple-100 text-purple-800',
+    completed: 'bg-success/20 text-success',
+    failed: 'bg-red-100 text-red-800'
+  };
+
+  const icons = {
+    new: '🆕',
+    processing: '⚙️',
+    auditing: '🔍',
+    completed: '✅',
+    failed: '❌'
   };
 
   return (
-    <span className={`px-4 py-2 rounded-lg text-sm font-medium ${colors[status]}`}>
+    <span className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${colors[status] || 'bg-gray-100 text-gray-800'}`}>
+      <span>{icons[status] || '📄'}</span>
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );

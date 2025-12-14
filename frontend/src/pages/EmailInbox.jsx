@@ -234,7 +234,7 @@ const EmailInbox = () => {
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <a
-                                                                href={`http://localhost:8003/uploads/${attachment.filename}`}
+                                                                href={`http://localhost:8000/uploads/${attachment.filename}`}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-text-light hover:text-primary"
@@ -243,7 +243,7 @@ const EmailInbox = () => {
                                                                 <Eye size={18} />
                                                             </a>
                                                             <a
-                                                                href={`http://localhost:8003/uploads/${attachment.filename}`}
+                                                                href={`http://localhost:8000/uploads/${attachment.filename}`}
                                                                 download
                                                                 className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-text-light hover:text-primary"
                                                                 title="Download"
