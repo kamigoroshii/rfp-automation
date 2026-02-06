@@ -41,6 +41,7 @@ class AnalyticsService:
                             COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
                             COUNT(CASE WHEN status = 'processing' THEN 1 END) as in_progress,
                             COUNT(CASE WHEN status = 'new' THEN 1 END) as new,
+                            COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed,
                             AVG(match_score) as avg_match_accuracy,
                             AVG(EXTRACT(EPOCH FROM (updated_at - discovered_at))/60) as avg_processing_time
                         FROM rfps
@@ -64,8 +65,9 @@ class AnalyticsService:
                             "completed": int(row[1]) if row[1] else 0,
                             "in_progress": int(row[2]) if row[2] else 0,
                             "new": int(row[3]) if row[3] else 0,
-                            "avg_match_accuracy": float(row[4]) if row[4] else 0.0,
-                            "avg_processing_time": float(row[5]) if row[5] else 0.0,
+                            "failed": int(row[4]) if row[4] else 0,
+                            "avg_match_accuracy": float(row[5]) if row[5] else 0.0,
+                            "avg_processing_time": float(row[6]) if row[6] else 0.0,
                             "win_rate": float(win_rate_row[0]) if win_rate_row and win_rate_row[0] else 0.0
                         },
                         "trends": {

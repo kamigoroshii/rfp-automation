@@ -127,13 +127,9 @@ def save_results_sync(rfp_id: str, result: dict):
         recommendation = result.get('recommendation', {})
         
         top_match_score = matches[0]['match_score'] if matches else 0.0
-        # Find total for recommended SKU
         rec_sku = recommendation.get('sku')
-        total_est = 0.0
-        for p in pricing:
-            if p['sku'] == rec_sku:
-                total_est = p['total']
-                break
+        # Calculate total from all pricing items
+        total_est = sum(p.get('total', 0) for p in pricing)
         
         cursor.execute("""
             UPDATE rfps 

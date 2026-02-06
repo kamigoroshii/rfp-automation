@@ -108,6 +108,17 @@ class RFPService:
                     if not row:
                         return None
                     
+                    # Helper to parse JSON if string
+                    def parse_json_field(val, default):
+                        if val is None:
+                            return default
+                        if isinstance(val, str):
+                            try:
+                                return json.loads(val)
+                            except:
+                                return default
+                        return val
+
                     # Get matched products
                     cursor.execute("""
                         SELECT sku, product_name, match_score, specification_alignment
@@ -122,7 +133,7 @@ class RFPService:
                             "sku": match_row[0],
                             "product_name": match_row[1],
                             "match_score": float(match_row[2]),
-                            "specification_alignment": match_row[3]
+                            "specification_alignment": parse_json_field(match_row[3], {})
                         })
                     
                     # Get pricing breakdown
@@ -156,11 +167,11 @@ class RFPService:
                         "discovered_at": row[6].isoformat() if row[6] else None,
                         "match_score": float(row[7]) if row[7] else 0.0,
                         "total_estimate": float(row[8]) if row[8] else 0.0,
-                        "testing_requirements": row[9] if row[9] else [],
-                        "specifications": row[10] if row[10] else {},
+                        "testing_requirements": parse_json_field(row[9], []),
+                        "specifications": parse_json_field(row[10], {}),
                         "recommended_sku": row[11],
-                        "attachments": row[12] if row[12] else [],
-                        "audit_report": row[13] if row[13] else {},
+                        "attachments": parse_json_field(row[12], []),
+                        "audit_report": parse_json_field(row[13], {}),
                         "matches": matches,
                         "pricing": pricing
                     }
@@ -430,11 +441,8 @@ class RFPService:
                     
                     top_match_score = matches[0]['match_score'] if matches else 0.0
                     rec_sku = recommendation.get('sku')
-                    total_est = 0.0
-                    for p in pricing:
-                        if p['sku'] == rec_sku:
-                            total_est = p['total']
-                            break
+                    # Calculate total from all pricing items
+                    total_est = sum(p.get('total', 0) for p in pricing)
                     
                     self._mock_db[rfp_id]['match_score'] = top_match_score
                     self._mock_db[rfp_id]['total_estimate'] = total_est
@@ -475,11 +483,8 @@ class RFPService:
                     
                     top_match_score = matches[0]['match_score'] if matches else 0.0
                     rec_sku = recommendation.get('sku')
-                    total_est = 0.0
-                    for p in pricing:
-                        if p['sku'] == rec_sku:
-                            total_est = p['total']
-                            break
+                    # Calculate total from all pricing items
+                    total_est = sum(p.get('total', 0) for p in pricing)
                     
                     cursor.execute("""
                         UPDATE rfps 

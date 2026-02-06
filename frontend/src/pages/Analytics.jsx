@@ -69,6 +69,7 @@ const Analytics = () => {
     completed: 8,
     in_progress: 4,
     new: 3,
+    failed: 1,
     avg_match_accuracy: 0.87,
     avg_processing_time: 18.45,
     win_rate: 0.65
@@ -129,11 +130,11 @@ const Analytics = () => {
   };
 
   const rfpStatusChartData = {
-    labels: ['Completed', 'In Progress', 'New'],
+    labels: ['Completed', 'In Progress', 'New', 'Failed'],
     datasets: [
       {
-        data: [overview.completed, overview.in_progress, overview.new],
-        backgroundColor: ['#228B22', '#DAA520', '#556B2F'],
+        data: [overview.completed, overview.in_progress, overview.new, overview.failed],
+        backgroundColor: ['#228B22', '#DAA520', '#556B2F', '#B22222'],
         borderWidth: 0
       }
     ]

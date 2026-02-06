@@ -1,0 +1,35 @@
+services:
+  # Backend API
+  - type: web
+    name: smartbid-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn orchestrator.api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: smartbid-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: smartbid-redis
+          type: redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SYNC_PROCESSING
+        value: "true"
+    autoDeploy: true
+
+  # Redis
+  - type: redis
+    name: smartbid-redis
+    ipAllowList: []
+    plan: free
+
+databases:
+  # PostgreSQL
+  - name: smartbid-db
+    databaseName: smartbid
+    user: smartbid
+    plan: free
