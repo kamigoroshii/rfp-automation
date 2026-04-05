@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Test - Mock Tender Portal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .rfp-listing {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .rfp-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .rfp-client {
+            color: #555;
+            margin: 5px 0;
+        }
+        .rfp-deadline {
+            color: #e74c3c;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .rfp-value {
+            color: #27ae60;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .rfp-description {
+            margin: 15px 0;
+            line-height: 1.6;
+            color: #666;
+        }
+        .rfp-specs {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+            color: #555;
+        }
+        .instruction {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .url-box {
+            background: #263238;
+            color: #aed581;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 SmartBid Test Portal</h1>
+    
+    <div class="instruction">
+        <strong>🎯 Quick Testing Instructions:</strong>
+        <ol>
+            <li>Make sure your frontend dev server is running: <code>cd frontend && npm run dev</code></li>
+            <li>Copy this URL:</li>
+        </ol>
+        <div class="url-box">http://localhost:5173/demos/test-simple.html</div>
+        <ol start="3">
+            <li>Go to SmartBid Submit RFP page</li>
+            <li>Paste the URL above</li>
+            <li>Click "Scrape & Process"</li>
+        </ol>
+        <p><strong>Note:</strong> This page contains 3 simple RFPs with the exact structure the Sales Agent expects.</p>
+    </div>
+
+    <!-- RFP 1 -->
+    <div class="rfp-listing" data-rfp-id="TEST-001">
+        <div class="rfp-title">Quick Test: Cable Supply for Test Project</div>
+        <div class="rfp-client">Client: Test Corporation Ltd</div>
+        <div class="rfp-deadline">Deadline: 2026-01-31</div>
+        <div class="rfp-value">Value: ₹10 Crores</div>
+        <div class="rfp-description">
+            This is a test RFP for validating the web scraping functionality. 
+            Requirements include supply of 5km of 11kV XLPE cables.
+        </div>
+        <div class="rfp-specs">
+            Specs: 11kV, 3-Core, Copper Conductor, XLPE Insulation, Aluminum Armour
+        </div>
+    </div>
+
+    <!-- RFP 2 -->
+    <div class="rfp-listing" data-rfp-id="TEST-002">
+        <div class="rfp-title">Test RFP: Solar Panel Procurement</div>
+        <div class="rfp-client">Client: Green Energy Test Corp</div>
+        <div class="rfp-deadline">Deadline: 2026-02-15</div>
+        <div class="rfp-value">Value: ₹25 Crores</div>
+        <div class="rfp-description">
+            Test procurement for 500kW solar panels. 
+            This RFP is for testing the extraction and processing pipeline.
+        </div>
+        <div class="rfp-specs">
+            Specs: 450Wp Poly Modules, >19% Efficiency, 25 Year Warranty
+        </div>
+    </div>
+
+    <!-- RFP 3 -->
+    <div class="rfp-listing" data-rfp-id="TEST-003">
+        <div class="rfp-title">Test: LED Lighting System</div>
+        <div class="rfp-client">Client: Municipal Corporation Test</div>
+        <div class="rfp-deadline">Deadline: 2026-01-20</div>
+        <div class="rfp-value">Value: ₹5 Crores</div>
+        <div class="rfp-description">
+            Test RFP for LED street lighting installation.
+            100 units of 100W LED street lights required.
+        </div>
+        <div class="rfp-specs">
+            Specs: 100W LED, >12000 lumens, IP65, Smart Control
+        </div>
+    </div>
+
+    <div class="instruction" style="background: #fff8e1; border-left-color: #ffc107;">
+        <strong>⚙️ Expected Behavior:</strong>
+        <ul>
+            <li>Sales Agent should find 3 RFPs</li>
+            <li>Each should be parsed for title, client, deadline, value, and specs</li>
+            <li>Days until deadline should be calculated</li>
+            <li>90-day filter should be applied (all should pass)</li>
+            <li>Go/No-Go scores should be computed</li>
+            <li>Qualified RFPs should be stored in database</li>
+        </ul>
+    </div>
+</body>
+</html>

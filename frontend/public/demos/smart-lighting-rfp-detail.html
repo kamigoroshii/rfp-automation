@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFP-2025-003: Smart LED Street Lighting</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f7fa;
+        }
+        .header {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+            padding: 40px 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 32px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: -20px auto 40px;
+            padding: 0 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+        }
+        .section-title {
+            color: #38f9d7;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #38f9d7;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .info-item {
+            padding: 15px;
+            background: #f0fff4;
+            border-radius: 8px;
+            border-left: 4px solid #38f9d7;
+        }
+        .info-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        .specs-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .specs-table th {
+            background: #38f9d7;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        .specs-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .download-btn {
+            background: #38f9d7;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>💡 Smart LED Street Lighting Implementation</h1>
+            <p class="rfp-id">RFP-2025-003 | Published: November 20, 2025</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2 class="section-title">Project Overview</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Client Organization</div>
+                    <div class="info-value">Pune Smart City Corporation</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Project Value</div>
+                    <div class="info-value">₹28 Crores</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Submission Deadline</div>
+                    <div class="info-value">Dec 30, 2025 10:00 AM</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Project Type</div>
+                    <div class="info-value">Smart City - Infrastructure</div>
+                </div>
+            </div>
+
+            <p style="line-height: 1.8; color: #555; margin-top: 20px;">
+                Pune Smart City Corporation invites bids for supply, installation, testing, and commissioning of 500 Smart LED Street Lights with wireless control system across major arterial roads under the Smart Cities Mission.
+            </p>
+        </div>
+
+        <div class="card">
+            <h2 class="section-title">Technical Specifications</h2>
+            
+            <table class="specs-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Specification</th>
+                        <th>Standard</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>LED Wattage</strong></td>
+                        <td>120W ±10%</td>
+                        <td>LM-79</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Luminous Output</strong></td>
+                        <td>≥14,000 lumens</td>
+                        <td>LM-79</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Luminous Efficacy</strong></td>
+                        <td>≥130 lm/W</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Color Temperature</strong></td>
+                        <td>5700K (Cool White)</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CRI (Color Rendering Index)</strong></td>
+                        <td>≥70</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>IP Rating</strong></td>
+                        <td>IP66 (Dust & Water Proof)</td>
+                        <td>IEC 60529</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Power Factor</strong></td>
+                        <td>≥0.95</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>LED Chip Type</strong></td>
+                        <td>SMD 3030 or equivalent</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Operating Voltage</strong></td>
+                        <td>90-300V AC, 50Hz</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>THD (Total Harmonic Distortion)</strong></td>
+                        <td>≤15%</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Surge Protection</strong></td>
+                        <td>10kV (built-in SPD)</td>
+                        <td>IEC 61643-11</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Housing Material</strong></td>
+                        <td>Die-cast aluminum alloy</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Lens Material</strong></td>
+                        <td>Toughened glass (tempered)</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Operating Temperature</strong></td>
+                        <td>-20°C to +50°C</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Lifespan (L70)</strong></td>
+                        <td>≥50,000 hours</td>
+                        <td>LM-80</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Warranty</strong></td>
+                        <td>5 years comprehensive</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>BIS Certification</strong></td>
+                        <td>IS 16102:2018 mandatory</td>
+                        <td>BIS</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2 class="section-title">Smart Control System (NEMA Based LoRaWAN)</h2>
+            <ul style="line-height: 2; color: #555;">
+                <li><strong>Communication Protocol:</strong> LoRaWAN Class C</li>
+                <li><strong>NEMA Socket:</strong> 7-pin NEMA compliant receptacle</li>
+                <li><strong>Dimming Capability:</strong> 0-100% (10% increments)</li>
+                <li><strong>Scheduling:</strong> Programmable on/off times, dimming profiles</li>
+                <li><strong>Energy Monitoring:</strong> Real-time power consumption tracking</li>
+                <li><strong>Fault Detection:</strong> Automatic alerts for malfunctions</li>
+                <li><strong>Geolocation:</strong> GPS coordinates for each luminaire</li>
+                <li><strong>Gateway:</strong> LoRaWAN gateway for every 50 lights</li>
+                <li><strong>Central Management System:</strong> Web-based dashboard with mobile app</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2 class="section-title">Scope of Work</h2>
+            <ul style="line-height: 2; color: #555;">
+                <li>Supply of 500 LED street lights with smart controllers</li>
+                <li>Supply of 10 LoRaWAN gateways</li>
+                <li>Installation on existing poles (civil work excluded)</li>
+                <li>Cable laying and electrical connections</li>
+                <li>Testing and commissioning of complete system</li>
+                <li>Integration with central monitoring system</li>
+                <li>Training for 10 municipal staff members</li>
+                <li>5 years comprehensive maintenance (AMC)</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2 class="section-title">Testing Requirements</h2>
+            <ul style="line-height: 2; color: #555;">
+                <li><strong>LM-79:</strong> Photometric testing</li>
+                <li><strong>LM-80:</strong> LED lumen maintenance testing</li>
+                <li><strong>IP Testing:</strong> Ingress protection verification (IP66)</li>
+                <li><strong>Surge Test:</strong> 10kV as per IEC 61643-11</li>
+                <li><strong>Vibration Test:</strong> As per IEC 60068-2-6</li>
+                <li><strong>Salt Spray Test:</strong> 200 hours as per IEC 60068-2-11</li>
+                <li><strong>LoRaWAN Certification:</strong> LoRa Alliance certified</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2 class="section-title">Download Documents</h2>
+            <div>
+                <a href="#" class="download-btn">📄 Complete Tender Document</a>
+                <a href="#" class="download-btn">📋 Bill of Quantities</a>
+                <a href="#" class="download-btn">🗺️ Luminaire Location Map</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

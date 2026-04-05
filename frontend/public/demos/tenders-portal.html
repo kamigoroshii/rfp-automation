@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Government Tenders Portal - Active RFPs</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0;
+            color: #333;
+            font-size: 28px;
+        }
+        .header p {
+            margin: 5px 0 0 0;
+            color: #666;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .stat-card h3 {
+            margin: 0;
+            font-size: 32px;
+            color: #667eea;
+        }
+        .stat-card p {
+            margin: 5px 0 0 0;
+            color: #666;
+        }
+        .rfp-listing {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-left: 5px solid #667eea;
+        }
+        .rfp-listing:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+        .rfp-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+        .rfp-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #333;
+            margin: 0 0 10px 0;
+        }
+        .rfp-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .badge-urgent {
+            background: #fee;
+            color: #c33;
+        }
+        .badge-high-value {
+            background: #efe;
+            color: #3a3;
+        }
+        .badge-standard {
+            background: #eef;
+            color: #33a;
+        }
+        .rfp-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .meta-item {
+            display: flex;
+            align-items: center;
+            color: #666;
+            font-size: 14px;
+        }
+        .meta-item strong {
+            color: #333;
+            margin-left: 5px;
+        }
+        .rfp-description {
+            color: #555;
+            line-height: 1.6;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .rfp-specs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0;
+        }
+        .spec-tag {
+            background: #e8eaf6;
+            color: #5c6bc0;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 13px;
+        }
+        .rfp-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        .view-btn {
+            background: #667eea;
+            color: white;
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .view-btn:hover {
+            background: #5568d3;
+        }
+        .deadline-warning {
+            color: #d32f2f;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .filter-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .filter-bar select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏛️ Government Tenders Portal</h1>
+        <p>Live RFP Opportunities - Electrical & Infrastructure Projects</p>
+    </div>
+
+    <div class="container">
+        <div class="stats">
+            <div class="stat-card">
+                <h3>24</h3>
+                <p>Active RFPs</p>
+            </div>
+            <div class="stat-card">
+                <h3>₹450Cr</h3>
+                <p>Total Value</p>
+            </div>
+            <div class="stat-card">
+                <h3>8</h3>
+                <p>Closing Soon</p>
+            </div>
+            <div class="stat-card">
+                <h3>156</h3>
+                <p>Total Views</p>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <select>
+                <option>All Categories</option>
+                <option>Cables & Wires</option>
+                <option>Solar Energy</option>
+                <option>Smart Infrastructure</option>
+            </select>
+            <select>
+                <option>All Deadlines</option>
+                <option>This Week</option>
+                <option>This Month</option>
+                <option>Next 90 Days</option>
+            </select>
+        </div>
+
+        <!-- RFP Listing 1 -->
+        <div class="rfp-listing" data-rfp-id="RFP-2025-001">
+            <div class="rfp-header">
+                <div>
+                    <h2 class="rfp-title">Urgent: 33kV Low Loss Cabling for Metro Phase IV</h2>
+                </div>
+                <span class="rfp-badge badge-urgent">⚡ URGENT</span>
+            </div>
+            
+            <div class="rfp-meta">
+                <div class="meta-item">
+                    📅 <strong>Deadline: Dec 25, 2025 5:00 PM</strong>
+                </div>
+                <div class="meta-item">
+                    🏢 <strong>Client: Delhi Metro Rail Corporation</strong>
+                </div>
+                <div class="meta-item">
+                    💰 <strong>Est. Value: ₹45 Crores</strong>
+                </div>
+                <div class="meta-item">
+                    📍 <strong>Location: Delhi NCR</strong>
+                </div>
+            </div>
+
+            <div class="rfp-description">
+                <strong>Project Scope:</strong> Requirement for 25 kilometers of 33kV XLPE Underground Cables for Metro Rail Phase IV expansion. High-priority infrastructure project with strict quality requirements.
+            </div>
+
+            <div class="rfp-specs">
+                <span class="spec-tag">Voltage: 33kV</span>
+                <span class="spec-tag">Conductor: Copper</span>
+                <span class="spec-tag">Core: 3-Core</span>
+                <span class="spec-tag">Armour: Steel Wire</span>
+                <span class="spec-tag">Sheath: FRLS PVC</span>
+                <span class="spec-tag">Standards: IEC 60502</span>
+            </div>
+
+            <div class="rfp-footer">
+                <span class="deadline-warning">⏰ 10 days remaining</span>
+                <a href="metro-rail-rfp-detail.html" class="view-btn">View Full RFP →</a>
+            </div>
+        </div>
+
+        <!-- RFP Listing 2 -->
+        <div class="rfp-listing" data-rfp-id="RFP-2026-002">
+            <div class="rfp-header">
+                <div>
+                    <h2 class="rfp-title">Supply of 540Wp Mono-PERC Solar Modules</h2>
+                </div>
+                <span class="rfp-badge badge-high-value">💎 HIGH VALUE</span>
+            </div>
+            
+            <div class="rfp-meta">
+                <div class="meta-item">
+                    📅 <strong>Deadline: Jan 15, 2026 12:00 PM</strong>
+                </div>
+                <div class="meta-item">
+                    🏢 <strong>Client: Solar Energy Corporation of India</strong>
+                </div>
+                <div class="meta-item">
+                    💰 <strong>Est. Value: ₹120 Crores</strong>
+                </div>
+                <div class="meta-item">
+                    📍 <strong>Location: Rajasthan</strong>
+                </div>
+            </div>
+
+            <div class="rfp-description">
+                <strong>Project Scope:</strong> Procurement of 10,000 units of Mono PERC Solar Modules for 50MW Solar Park development. Requires BIS certification and 25-year linear performance warranty.
+            </div>
+
+            <div class="rfp-specs">
+                <span class="spec-tag">Power: >540Wp</span>
+                <span class="spec-tag">Efficiency: >21%</span>
+                <span class="spec-tag">Technology: Mono PERC</span>
+                <span class="spec-tag">Half-Cut Cells</span>
+                <span class="spec-tag">Warranty: 25 Years</span>
+                <span class="spec-tag">Standards: IEC 61215</span>
+            </div>
+
+            <div class="rfp-footer">
+                <span style="color: #666;">⏰ 30 days remaining</span>
+                <a href="solar-modules-rfp-detail.html" class="view-btn">View Full RFP →</a>
+            </div>
+        </div>
+
+        <!-- RFP Listing 3 -->
+        <div class="rfp-listing" data-rfp-id="RFP-2025-003">
+            <div class="rfp-header">
+                <div>
+                    <h2 class="rfp-title">Smart LED Street Lighting Implementation</h2>
+                </div>
+                <span class="rfp-badge badge-standard">🔵 STANDARD</span>
+            </div>
+            
+            <div class="rfp-meta">
+                <div class="meta-item">
+                    📅 <strong>Deadline: Dec 30, 2025 10:00 AM</strong>
+                </div>
+                <div class="meta-item">
+                    🏢 <strong>Client: Pune Smart City Corporation</strong>
+                </div>
+                <div class="meta-item">
+                    💰 <strong>Est. Value: ₹28 Crores</strong>
+                </div>
+                <div class="meta-item">
+                    📍 <strong>Location: Pune, Maharashtra</strong>
+                </div>
+            </div>
+
+            <div class="rfp-description">
+                <strong>Project Scope:</strong> Supply and installation of 500 Smart LED Street Lights with LoRaWAN-based remote control and monitoring system for smart city initiative.
+            </div>
+
+            <div class="rfp-specs">
+                <span class="spec-tag">Wattage: 120W</span>
+                <span class="spec-tag">Lumens: >14000lm</span>
+                <span class="spec-tag">IP Rating: IP66</span>
+                <span class="spec-tag">Control: LoRaWAN</span>
+                <span class="spec-tag">CCT: 5700K</span>
+                <span class="spec-tag">Standards: LM-79, LM-80</span>
+            </div>
+
+            <div class="rfp-footer">
+                <span class="deadline-warning">⏰ 15 days remaining</span>
+                <a href="smart-lighting-rfp-detail.html" class="view-btn">View Full RFP →</a>
+            </div>
+        </div>
+
+        <!-- RFP Listing 4 -->
+        <div class="rfp-listing" data-rfp-id="RFP-2026-004">
+            <div class="rfp-header">
+                <div>
+                    <h2 class="rfp-title">11kV XLPE Cables for Industrial Distribution</h2>
+                </div>
+                <span class="rfp-badge badge-standard">🔵 STANDARD</span>
+            </div>
+            
+            <div class="rfp-meta">
+                <div class="meta-item">
+                    📅 <strong>Deadline: Feb 10, 2026 3:00 PM</strong>
+                </div>
+                <div class="meta-item">
+                    🏢 <strong>Client: Tata Steel Limited</strong>
+                </div>
+                <div class="meta-item">
+                    💰 <strong>Est. Value: ₹35 Crores</strong>
+                </div>
+                <div class="meta-item">
+                    📍 <strong>Location: Jamshedpur</strong>
+                </div>
+            </div>
+
+            <div class="rfp-description">
+                <strong>Project Scope:</strong> Supply of 15km of 11kV XLPE Armoured Underground Cables for plant expansion project. Includes installation supervision and testing.
+            </div>
+
+            <div class="rfp-specs">
+                <span class="spec-tag">Voltage: 11kV</span>
+                <span class="spec-tag">Conductor: Aluminum</span>
+                <span class="spec-tag">Core: 3-Core</span>
+                <span class="spec-tag">Area: 240 sq.mm</span>
+                <span class="spec-tag">Armour: Aluminum Wire</span>
+                <span class="spec-tag">Standards: IS 7098</span>
+            </div>
+
+            <div class="rfp-footer">
+                <span style="color: #666;">⏰ 55 days remaining</span>
+                <a href="industrial-cables-rfp-detail.html" class="view-btn">View Full RFP →</a>
+            </div>
+        </div>
+
+        <!-- RFP Listing 5 -->
+        <div class="rfp-listing" data-rfp-id="RFP-2025-005">
+            <div class="rfp-header">
+                <div>
+                    <h2 class="rfp-title">132kV Transmission Line Cables - Urgent Requirement</h2>
+                </div>
+                <span class="rfp-badge badge-urgent">⚡ URGENT</span>
+            </div>
+            
+            <div class="rfp-meta">
+                <div class="meta-item">
+                    📅 <strong>Deadline: Dec 20, 2025 5:00 PM</strong>
+                </div>
+                <div class="meta-item">
+                    🏢 <strong>Client: Maharashtra State Electricity Board</strong>
+                </div>
+                <div class="meta-item">
+                    💰 <strong>Est. Value: ₹85 Crores</strong>
+                </div>
+                <div class="meta-item">
+                    📍 <strong>Location: Mumbai-Nashik Corridor</strong>
+                </div>
+            </div>
+
+            <div class="rfp-description">
+                <strong>Project Scope:</strong> Urgent procurement of 50km of 132kV XLPE Underground Transmission Cables for grid strengthening project. Accelerated delivery required.
+            </div>
+
+            <div class="rfp-specs">
+                <span class="spec-tag">Voltage: 132kV</span>
+                <span class="spec-tag">Conductor: Copper</span>
+                <span class="spec-tag">Single Core</span>
+                <span class="spec-tag">Area: 630 sq.mm</span>
+                <span class="spec-tag">Sheath: HDPE</span>
+                <span class="spec-tag">Standards: IEC 60840</span>
+            </div>
+
+            <div class="rfp-footer">
+                <span class="deadline-warning">⚡ CLOSING IN 5 DAYS!</span>
+                <a href="transmission-cables-rfp-detail.html" class="view-btn">View Full RFP →</a>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Add click tracking
+        document.querySelectorAll('.rfp-listing').forEach(listing => {
+            listing.addEventListener('click', function(e) {
+                if (!e.target.classList.contains('view-btn')) {
+                    console.log('Clicked RFP:', this.dataset.rfpId);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

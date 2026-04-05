@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartBid Demo Websites - Index</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-size: 42px;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+        }
+        .card h2 {
+            color: #667eea;
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 5px;
+            margin-bottom: 10px;
+        }
+        .badge-main {
+            background: #667eea;
+            color: white;
+        }
+        .badge-detail {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        .badge-test {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background 0.3s;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            background: #5568d3;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .info-box {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .code-block {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        ul {
+            margin-left: 20px;
+            color: #555;
+            line-height: 2;
+        }
+        ol {
+            margin-left: 20px;
+            color: #555;
+            line-height: 2;
+        }
+        .meta {
+            color: #999;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌐 SmartBid Demo Websites</h1>
+            <p>Test pages for RFP web scraping functionality</p>
+        </div>
+
+        <div class="info-box">
+            <h3>🚀 Quick Start</h3>
+            <ol>
+                <li><strong>Start Frontend Server:</strong></li>
+                <div class="code-block">cd frontend<br>npm run dev</div>
+                
+                <li><strong>Access Demo Pages:</strong> Click any link below or copy URL to SmartBid</li>
+                
+                <li><strong>Test Scraping:</strong>
+                    <ul>
+                        <li>Go to SmartBid → Submit RFP</li>
+                        <li>Select "Web URL" submission type</li>
+                        <li>Paste demo page URL (e.g., <code>http://localhost:5173/demos/test-simple.html</code>)</li>
+                        <li>Click "Scrape & Process"</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <h2 style="color: white; margin-bottom: 20px; font-size: 28px;">📂 Available Demo Pages</h2>
+
+        <div class="grid">
+            <!-- Main Portal -->
+            <div class="card">
+                <span class="badge badge-main">MAIN PORTAL</span>
+                <h2>🏛️ Government Tenders Portal</h2>
+                <p>Multi-RFP listing page with 5 different tenders. Best for testing bulk scraping and RFP discovery.</p>
+                <div class="meta">5 RFPs | Government & PSU | Mixed Categories</div>
+                <a href="tenders-portal.html" class="btn" target="_blank">View Page →</a>
+                <a href="#" onclick="copyURL('tenders-portal.html'); return false;" class="btn btn-secondary">Copy URL</a>
+            </div>
+
+            <!-- Test Simple -->
+            <div class="card">
+                <span class="badge badge-test">RECOMMENDED</span>
+                <h2>🧪 Quick Test Portal</h2>
+                <p>Simple 3-RFP page with clear structure. Perfect for first-time testing and validation of scraping logic.</p>
+                <div class="meta">3 RFPs | Simple Structure | Testing Focus</div>
+                <a href="test-simple.html" class="btn" target="_blank">View Page →</a>
+                <a href="#" onclick="copyURL('test-simple.html'); return false;" class="btn btn-secondary">Copy URL</a>
+            </div>
+
+            <!-- Metro Rail -->
+            <div class="card">
+                <span class="badge badge-detail">DETAIL PAGE</span>
+                <h2>🚇 Metro Rail Cable RFP</h2>
+                <p>Detailed RFP for 33kV XLPE cables. High-value government tender with complete technical specifications.</p>
+                <div class="meta">₹45 Cr | DMRC | Urgent (10 days)</div>
+                <a href="metro-rail-rfp-detail.html" class="btn" target="_blank">View Page →</a>
+                <a href="#" onclick="copyURL('metro-rail-rfp-detail.html'); return false;" class="btn btn-secondary">Copy URL</a>
+            </div>
+
+            <!-- Solar Modules -->
+            <div class="card">
+                <span class="badge badge-detail">DETAIL PAGE</span>
+                <h2>☀️ Solar Module Procurement</h2>
+                <p>Large-scale solar panel tender. 540Wp Mono-PERC modules for 50MW solar park project.</p>
+                <div class="meta">₹120 Cr | SECI | 30 days remaining</div>
+                <a href="solar-modules-rfp-detail.html" class="btn" target="_blank">View Page →</a>
+                <a href="#" onclick="copyURL('solar-modules-rfp-detail.html'); return false;" class="btn btn-secondary">Copy URL</a>
+            </div>
+
+            <!-- Smart Lighting -->
+            <div class="card">
+                <span class="badge badge-detail">DETAIL PAGE</span>
+                <h2>💡 Smart LED Street Lighting</h2>
+                <p>IoT-enabled street lighting with LoRaWAN control. Smart city infrastructure project.</p>
+                <div class="meta">₹28 Cr | Smart City | 15 days remaining</div>
+                <a href="smart-lighting-rfp-detail.html" class="btn" target="_blank">View Page →</a>
+                <a href="#" onclick="copyURL('smart-lighting-rfp-detail.html'); return false;" class="btn btn-secondary">Copy URL</a>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <h3>🔍 What Gets Scraped?</h3>
+            <p>The Sales Agent extracts the following from each <code>.rfp-listing</code> element:</p>
+            <ul>
+                <li><strong>RFP Title:</strong> From <code>.rfp-title</code></li>
+                <li><strong>Client Name:</strong> From <code>.rfp-client</code> or meta section</li>
+                <li><strong>Deadline:</strong> Parsed from date strings</li>
+                <li><strong>Project Value:</strong> Extracted from value field</li>
+                <li><strong>Description:</strong> From <code>.rfp-description</code></li>
+                <li><strong>Specifications:</strong> From <code>.rfp-specs</code> or spec tags</li>
+                <li><strong>Client Type:</strong> Inferred from client name (government/private)</li>
+            </ul>
+        </div>
+
+        <div class="info-box">
+            <h3>📋 Testing Workflow</h3>
+            <ol>
+                <li><strong>Discover RFPs:</strong> Sales Agent scrapes the portal page</li>
+                <li><strong>Apply 90-Day Filter:</strong> RFPs due beyond 90 days are filtered out</li>
+                <li><strong>Calculate Go/No-Go Score:</strong> Based on urgency, value, and fit</li>
+                <li><strong>Create Tickets:</strong> Qualified RFPs stored in <code>rfp_tickets</code> table</li>
+                <li><strong>Queue for Processing:</strong> Pushed to Redis queue for Technical & Pricing agents</li>
+            </ol>
+        </div>
+
+        <div class="info-box">
+            <h3>🛠️ API Testing</h3>
+            <p>Test the Sales Agent API directly:</p>
+            <div class="code-block">
+curl -X POST http://localhost:8005/api/sales/intake-url \<br>
+  -H "Content-Type: application/json" \<br>
+  -d '{"url": "http://localhost:5173/demos/test-simple.html"}'
+            </div>
+            <p style="margin-top: 15px;">Or use Python:</p>
+            <div class="code-block">
+from agents.sales.agent import SalesAgent<br>
+<br>
+agent = SalesAgent()<br>
+rfps = agent.discover_rfps_from_url(<br>
+    "http://localhost:5173/demos/test-simple.html"<br>
+)<br>
+print(f"Found {len(rfps)} RFPs")
+            </div>
+        </div>
+
+        <div style="text-align: center; color: white; margin-top: 40px; opacity: 0.8;">
+            <p>SmartBid Control Tower | Demo Environment</p>
+            <p style="font-size: 14px; margin-top: 5px;">For testing web scraping & RFP discovery</p>
+        </div>
+    </div>
+
+    <script>
+        function copyURL(page) {
+            const baseURL = window.location.origin + window.location.pathname.replace('index.html', '');
+            const fullURL = baseURL + page;
+            
+            navigator.clipboard.writeText(fullURL).then(() => {
+                alert('✅ URL copied to clipboard:\n' + fullURL);
+            }).catch(() => {
+                prompt('Copy this URL:', fullURL);
+            });
+        }
+    </script>
+</body>
+</html>
